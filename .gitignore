@@ -1,0 +1,36 @@
+# Node modules & dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build artifacts & packaged binaries (releases hosted separately)
+dist/
+dist-setup/
+
+# Video streaming provider sources & scrapers (Protected / Proprietary)
+src/services/providers.ts
+src/services/availability.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+setup_stdout.log
+setup_stderr.log
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+
+# Editor & OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db

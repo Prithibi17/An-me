@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #080A0D;
+  --background-secondary: #0D1015;
+  --card: #11151B;
+  --elevated: #161B22;
+  --foreground: #F5F7FA;
+  --secondary-text: #9CA3AF;
+  --muted: #6B7280;
+  --border: rgba(255, 255, 255, 0.07);
+
+  /* Equal Tri-Color Symphony: Pink, Blue, Red */
+  --accent-pink: #ec4899;
+  --accent-pink-hover: #f472b6;
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #60a5fa;
+  --accent-red: #ef4444;
+  --accent-red-hover: #f87171;
+
+  --accent: #ec4899;
+  --tri-gradient: linear-gradient(135deg, #ef4444 0%, #ec4899 50%, #3b82f6 100%);
+  --tri-gradient-reverse: linear-gradient(135deg, #3b82f6 0%, #ec4899 50%, #ef4444 100%);
+  --rating: #F5C451;
+  --success: #48C78E;
+  --surface-glass: rgba(17, 21, 27, 0.85);
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(239, 68, 68, 0.12), transparent 28rem),
+    radial-gradient(circle at 88% 14%, rgba(59, 130, 246, 0.12), transparent 32rem),
+    radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.08), transparent 30rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom subtle scrollbar with tri-color hover */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #080A0D;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c222c;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #ef4444, #ec4899, #3b82f6);
+}
+
+::selection {
+  background: rgba(236, 72, 153, 0.35);
+  color: white;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Cinematic row with balanced tri-color glow on hover */
+.cinematic-row {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 0.75rem;
+  background: var(--surface-glass);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  cursor: pointer;
+}
+.cinematic-row:hover,
+.cinematic-row:focus-within {
+  z-index: 2;
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.32), 0 0 12px rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+.cinematic-row__backdrop {
+  position: absolute;
+  inset: 0 0 0 12%;
+  z-index: -2;
+  opacity: 0.32;
+  filter: saturate(0.68) brightness(0.72) contrast(1.06);
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+.cinematic-row__backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cinematic-row__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, #0f1319 0%, rgba(15, 19, 25, 0.94) 31%, rgba(8, 10, 13, 0.46) 100%);
+  transition: background 180ms ease;
+}
+.cinematic-row__poster {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  width: 4.8rem;
+  flex: 0 0 4.8rem;
+  overflow: hidden;
+  background: #161b22;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 72%, rgba(0, 0, 0, 0.72) 84%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 72%, rgba(0, 0, 0, 0.72) 84%, transparent 100%);
+}
+.cinematic-row__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.96) brightness(0.94) contrast(1.04);
+  transition: filter 180ms ease, transform 180ms ease;
+}
+.cinematic-row:hover .cinematic-row__poster img,
+.cinematic-row:focus-within .cinematic-row__poster img {
+  filter: saturate(1.18) brightness(1.03) contrast(1.06);
+  transform: scale(1.035);
+}
+.cinematic-row:hover .cinematic-row__backdrop,
+.cinematic-row:focus-within .cinematic-row__backdrop {
+  opacity: 0.52;
+  filter: saturate(1.16) brightness(0.92) contrast(1.04);
+}
+.cinematic-row:hover .cinematic-row__scrim,
+.cinematic-row:focus-within .cinematic-row__scrim {
+  background: linear-gradient(90deg, #0f1319 0%, rgba(15, 19, 25, 0.86) 31%, rgba(8, 10, 13, 0.24) 100%);
+}
+.cinematic-row__rank {
+  z-index: 1;
+  width: 2rem;
+  flex: 0 0 2rem;
+  text-align: center;
+  font: 800 0.85rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: rgba(255, 255, 255, 0.44);
+}
+.cinematic-row__rank--top-1 {
+  color: #ef4444; /* Red for #1 */
+}
+.cinematic-row__rank--top-2 {
+  color: #ec4899; /* Pink for #2 */
+}
+.cinematic-row__rank--top-3 {
+  color: #3b82f6; /* Blue for #3 */
+}
+
+/* Electron frameless window drag styles */
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
