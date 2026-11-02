@@ -41,6 +41,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   isDesktop: true,
 
+  // Updater Microservice Bridge
+  updater: {
+    downloadAndInstall: (downloadUrl, fileName) => ipcRenderer.invoke('updater-download-and-install', { downloadUrl, fileName }),
+    onProgress: (callback) => {
+      const sub = (_event, data) => callback(data);
+      ipcRenderer.on('updater-progress', sub);
+      return () => ipcRenderer.removeListener('updater-progress', sub);
+    },
+  },
+
   // Installer & Uninstaller Wizard Microservice Bridge
   installer: {
     selectDirectory: (defaultPath) => ipcRenderer.invoke('installer-select-directory', defaultPath),

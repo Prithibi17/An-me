@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, Notification, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const { execSync, spawn } = require('child_process');
 
 // Explicitly register Windows Application User Model ID so Taskbar groups and displays the An:me rounded icon
@@ -284,6 +286,103 @@ ipcMain.handle('auth-verify-password', async (_event, password, storedHash) => {
 
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// ================= GITHUB AUTO-UPDATER IPC HANDLERS =================
+function downloadFileWithRedirects(url, destPath, onProgress) {
+  return new Promise((resolve, reject) => {
+    function get(currentUrl, redirectCount = 0) {
+      if (redirectCount > 10) return reject(new Error('Too many redirects'));
+      let client = https;
+      try {
+        const parsed = new URL(currentUrl);
+        client = parsed.protocol === 'http:' ? http : https;
+      } catch (err) {
+        return reject(err);
+      }
+
+      client.get(currentUrl, { headers: { 'User-Agent': 'An-me-Desktop-Updater' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return get(res.headers.location, redirectCount + 1);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`Download failed with HTTP ${res.statusCode}`));
+        }
+
+        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+        let receivedBytes = 0;
+        const fileStream = fs.createWriteStream(destPath);
+
+        res.on('data', (chunk) => {
+          receivedBytes += chunk.length;
+          if (totalBytes > 0 && onProgress) {
+            const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
+            const transferredMB = parseFloat((receivedBytes / (1024 * 1024)).toFixed(1));
+            const totalMB = parseFloat((totalBytes / (1024 * 1024)).toFixed(1));
+            onProgress({ percent, transferredMB, totalMB, status: 'downloading' });
+          }
+        });
+
+        res.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          fileStream.close(() => resolve(destPath));
+        });
+
+        fileStream.on('error', (err) => {
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+      }).on('error', reject);
+    }
+
+    get(url);
+  });
+}
+
+ipcMain.handle('updater-download-and-install', async (event, { downloadUrl, fileName }) => {
+  console.log('[UPDATER] Starting update download from:', downloadUrl);
+  const tempInstaller = path.join(app.getPath('temp'), fileName || 'An-me-Setup.exe');
+
+  try {
+    await downloadFileWithRedirects(downloadUrl, tempInstaller, (progress) => {
+      event.sender.send('updater-progress', progress);
+    });
+
+    console.log('[UPDATER] Download completed. Saved to:', tempInstaller);
+    event.sender.send('updater-progress', { percent: 100, status: 'installing' });
+
+    // Detect installation folder from Windows Registry
+    let targetInstallPath = '';
+    try {
+      const regOut = execSync('powershell -NoProfile -Command "(Get-ItemProperty -Path HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\An-me -Name InstallLocation -ErrorAction SilentlyContinue).InstallLocation"', { encoding: 'utf8' }).trim();
+      if (regOut && fs.existsSync(regOut)) {
+        targetInstallPath = regOut;
+      }
+    } catch {}
+
+    // Launch downloaded installer
+    const args = ['--setup'];
+    if (targetInstallPath) {
+      args.push(`--install-path=${targetInstallPath}`);
+    }
+
+    spawn(tempInstaller, args, {
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
+
+    // Give installer time to launch, then close running app instance
+    setTimeout(() => {
+      app.quit();
+    }, 1500);
+
+    return { success: true };
+  } catch (err) {
+    console.error('[UPDATER] Update failed:', err);
+    event.sender.send('updater-progress', { status: 'error', error: err.message });
+    throw err;
+  }
 });
 
 // ================= INSTALLER & UNINSTALLER WIZARD IPC HANDLERS =================
