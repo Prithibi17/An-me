@@ -21,6 +21,26 @@
 
 ---
 
+## 📸 App Screenshots
+
+<p align="center">
+  <strong>Home & Spotlight Discovery</strong>
+</p>
+<p align="center">
+  <img src="public/screenshots/home.png" alt="An:me Home & Spotlight Discovery" width="100%" style="border-radius: 12px;" />
+</p>
+
+<br>
+
+<p align="center">
+  <strong>Desktop Video Player & Stream View</strong>
+</p>
+<p align="center">
+  <img src="public/screenshots/watch.png" alt="An:me Video Player & Stream View" width="100%" style="border-radius: 12px;" />
+</p>
+
+---
+
 ## ✨ Features
 
 ### 🖥️ Native Desktop Experience
