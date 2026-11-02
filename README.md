@@ -75,7 +75,7 @@ Download the latest pre-built Windows installation executable:
 
 | Release | Platform | Setup File | Type |
 | :--- | :--- | :--- | :--- |
-| **v1.0.0** | Windows 10 / 11 (x64) | [**An-me-Setup.exe**](https://github.com/Prithibi17/An-me/releases/latest) | Standalone Installer |
+| **v1.0.1** | Windows 10 / 11 (x64) | [**An-me-Setup.exe**](https://github.com/Prithibi17/An-me/releases/latest) | Standalone Installer |
 
 > [!NOTE]
 > The setup file creates desktop and Start Menu shortcuts, registers the application with Windows Installed Apps for clean uninstallation, and occupies only ~253 MB of disk space.
