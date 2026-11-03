@@ -43,7 +43,12 @@ export function AnimeGrid({
   }, [page]);
 
   const handleCommitPage = () => {
-    const parsed = parseInt(pageInput.trim(), 10);
+    const clean = pageInput.trim();
+    if (!clean) {
+      if (typeof page === 'number') setPageInput(String(page));
+      return;
+    }
+    const parsed = parseInt(clean, 10);
     if (!isNaN(parsed) && parsed >= 1 && onPageChange) {
       if (parsed !== page) {
         onPageChange(parsed);
@@ -103,21 +108,26 @@ export function AnimeGrid({
               </button>
               {typeof page === 'number' && (
                 onPageChange ? (
-                  <div className="relative flex items-center ml-1 group" title="Type page number and press Enter to jump">
+                  <div className="relative flex items-center ml-1 group" title="Type any page number (1, 10, 100, 1000...) and press Enter to jump">
                     <input
-                      type="number"
-                      min={1}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={pageInput}
-                      onChange={(e) => setPageInput(e.target.value)}
+                      onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ''))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCommitPage();
                           e.currentTarget.blur();
                         }
                       }}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCommitPage}
                       disabled={isLoadingPage}
                       aria-label="Jump to page"
-                      className="w-9 h-7 text-center text-xs font-bold text-pink-400 bg-[#141824] border border-white/10 hover:border-pink-500/50 focus:border-pink-500 focus:bg-[#181d2c] focus:outline-none focus:ring-1 focus:ring-pink-500 rounded-lg transition-all cursor-text [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm"
+                      style={{ width: `${Math.max(34, (pageInput.length || 1) * 9 + 18)}px` }}
+                      className="h-7 text-center text-xs font-bold text-pink-400 bg-[#141824] border border-white/10 hover:border-pink-500/50 focus:border-pink-500 focus:bg-[#181d2c] focus:outline-none focus:ring-1 focus:ring-pink-500 rounded-lg transition-all cursor-text shadow-sm px-1"
                     />
                   </div>
                 ) : (

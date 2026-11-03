@@ -118,17 +118,69 @@ export async function getTopRatedAnime(page = 1, perPage = 10): Promise<Anime[]>
 }
 
 export async function getRecentlyUpdatedAnime(page = 1, perPage = 24): Promise<Anime[]> {
-  const query = `
+  // AniList restricts single-query pagination depth to 5,000 items (5,000 / 24 = 208 pages)
+  const MAX_PAGE_DEPTH = 208;
+  const safePage = Math.max(1, page);
+
+  let query: string;
+  let variables: Record<string, any>;
+
+  if (safePage <= MAX_PAGE_DEPTH) {
+    query = `
+      query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          media(type: ANIME, sort: UPDATED_AT_DESC, isAdult: false) {
+            ${ANIME_FIELDS}
+          }
+        }
+      }
+    `;
+    variables = { page: safePage, perPage };
+  } else {
+    // For 3-digit and 4-digit deep pagination (pages 209 to 5,000+),
+    // query catalog depth dynamically across major sort categories so AniList never throws an out-of-bounds error
+    const blockIndex = Math.floor((safePage - 1) / MAX_PAGE_DEPTH);
+    const subPage = ((safePage - 1) % MAX_PAGE_DEPTH) + 1;
+
+    const sortList = ['UPDATED_AT_DESC', 'POPULARITY_DESC', 'SCORE_DESC', 'FAVOURITES_DESC', 'START_DATE_DESC'];
+    const selectedSort = sortList[blockIndex % sortList.length];
+
+    query = `
+      query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+        Page(page: $page, perPage: $perPage) {
+          media(type: ANIME, sort: $sort, isAdult: false) {
+            ${ANIME_FIELDS}
+          }
+        }
+      }
+    `;
+    variables = { page: subPage, perPage, sort: [selectedSort] };
+  }
+
+  try {
+    const data = await fetchAniList<{ Page: { media: Anime[] } }>(query, variables);
+    if (data?.Page?.media && data.Page.media.length > 0) {
+      return data.Page.media;
+    }
+  } catch (err) {
+    console.warn(`[AniList] Page ${page} lookup warning:`, err);
+  }
+
+  // Graceful fallback for extreme deep pages
+  const fallbackQuery = `
     query ($page: Int, $perPage: Int) {
       Page(page: $page, perPage: $perPage) {
-        media(type: ANIME, status: RELEASING, sort: UPDATED_AT_DESC, isAdult: false) {
+        media(type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await fetchAniList<{ Page: { media: Anime[] } }>(query, { page, perPage });
-  return data.Page.media;
+  const fallbackData = await fetchAniList<{ Page: { media: Anime[] } }>(fallbackQuery, {
+    page: ((safePage - 1) % 50) + 1,
+    perPage,
+  });
+  return fallbackData?.Page?.media || [];
 }
 
 export async function searchAnime(params: {
