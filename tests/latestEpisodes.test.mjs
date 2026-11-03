@@ -7,6 +7,7 @@ import {
   deduplicateAnimeRecords,
   sortLatestEpisodes,
   isProhibitedContent,
+  isEligibleLatestRelease,
   mergeLatestEpisodesBatches,
 } from '../src/services/latestEpisodes.ts';
 
@@ -303,5 +304,44 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
     assert.equal(isProhibitedContent(hentai2), true);
     assert.equal(isProhibitedContent(erotica), true);
     assert.equal(isProhibitedContent(cleanShow), false);
+  });
+
+  // 14. Retro historical backfills filtered out while keeping genuine airing series
+  it('14. Excludes completed 1980s retro movies/OVAs while keeping genuine releasing series', () => {
+    const retro1982Movie = {
+      id: 10,
+      title: 'The Ideon: A Contact',
+      year: 1982,
+      status: 'Not yet aired',
+      episodes: '1',
+      is_sub: 1,
+    };
+    const retro1992OVA = {
+      id: 11,
+      title: 'Legendary Brave da Garn',
+      year: 1992,
+      status: 'Finished Airing',
+      episodes: '46',
+      is_sub: 46,
+    };
+    const modern2026Airing = {
+      id: 12,
+      title: 'Bleach: Thousand-Year Blood War',
+      year: 2026,
+      status: 'Currently Airing',
+      is_sub: 10,
+    };
+    const ongoingClassic = {
+      id: 13,
+      title: 'Case Closed',
+      year: 1996,
+      status: 'Currently Airing',
+      is_sub: 1218,
+    };
+
+    assert.equal(isEligibleLatestRelease(retro1982Movie), false, 'Retro 1982 movie backfill must be rejected');
+    assert.equal(isEligibleLatestRelease(retro1992OVA), false, 'Retro 1992 completed series must be rejected');
+    assert.equal(isEligibleLatestRelease(modern2026Airing), true, 'Modern 2026 airing series must be accepted');
+    assert.equal(isEligibleLatestRelease(ongoingClassic), true, 'Ongoing airing classic with active episodes must be accepted');
   });
 });

@@ -80,6 +80,42 @@ export function isProhibitedContent(raw: RawProviderAnime): boolean {
 }
 
 /**
+ * Validates whether an anime is an eligible genuine episode release for the Latest Episodes feed.
+ * - Excludes historical/retro single-episode movies and OVAs (e.g. from 1965 to 2024) that were
+ *   merely backfilled or re-encoded in the provider's database.
+ * - Retains active currently airing series (including long-running broadcast series like Detective Conan / One Piece).
+ * - Retains all modern releases from 2025–2026.
+ */
+export function isEligibleLatestRelease(raw: RawProviderAnime): boolean {
+  if (isProhibitedContent(raw)) return false;
+
+  const isSub = Number(raw.is_sub) || 0;
+  const isDub = Number(raw.is_dub) || 0;
+  if (isSub <= 0 && isDub <= 0) return false;
+
+  const currentYear = new Date().getFullYear();
+  const rawYear = Number(raw.year) || 0;
+  const isAiring = raw.status === 'Currently Airing';
+  const isRecentYear = rawYear >= currentYear - 1; // 2025 or 2026
+
+  // Ongoing long-running classic (e.g. One Piece, Case Closed) with active broadcast episodes
+  const isOngoingClassic = isAiring && (isSub > 1 || isDub > 1);
+
+  // If it's a completed retro OVA/Movie from before 2025, it's a historical database backfill
+  if (!isAiring && !isRecentYear && !isOngoingClassic) {
+    return false;
+  }
+
+  // Exclude single-episode old specials/movies
+  const totalEp = Number(raw.episodes) || 0;
+  if (!isRecentYear && totalEp <= 1 && !isAiring) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Parses provider updated_at string (e.g. "2026-11-02 18:16:27") into a verified UTC epoch timestamp in milliseconds.
  * Returns 0 if invalid or missing.
  */
@@ -293,8 +329,24 @@ export function sortLatestEpisodes(
   return [...withTimestamp, ...missingTimestamp];
 }
 
+interface ContinuousFeedCache {
+  items: Anime[];
+  nextRawPage: number;
+  hasMoreProvider: boolean;
+}
+
+const feedCaches: Record<EpisodeAudioFilter, ContinuousFeedCache> = {
+  sub: { items: [], nextRawPage: 1, hasMoreProvider: true },
+  dub: { items: [], nextRawPage: 1, hasMoreProvider: true },
+  all: { items: [], nextRawPage: 1, hasMoreProvider: true },
+};
+
 /**
- * Fetches latest episodes directly from provider with pagination, adult content filtering, and normalization.
+ * Continuous Stream Feed Loader:
+ * Progressively streams provider pages, filters out historical backfills (1970s-2024 retro movies),
+ * and maintains a strictly chronological sequence of genuine episodic releases.
+ * Ensures that Page 1, Page 2, Page 3, Page 4, Page 5, Page 6... are all consistently modern
+ * releasing series without jumping back and forth to old archives.
  */
 export async function fetchLatestEpisodesFeed(
   page = 1,
@@ -302,55 +354,62 @@ export async function fetchLatestEpisodesFeed(
   filter: EpisodeAudioFilter = 'sub'
 ): Promise<LatestEpisodesResult> {
   const safePage = Math.max(1, page);
+  const targetCount = safePage * perPage;
+  const cache = feedCaches[filter];
 
-  try {
-    const res = await fetch(`${BASE_URL}/recent-anime?page=${safePage}&per_page=${perPage}`, {
-      headers: { Accept: 'application/json' },
-    });
+  // Fetch from provider until we have enough genuine releases to fill the requested page
+  while (cache.items.length < targetCount && cache.hasMoreProvider && cache.nextRawPage <= 100) {
+    try {
+      const res = await fetch(`${BASE_URL}/recent-anime?page=${cache.nextRawPage}&per_page=50`, {
+        headers: { Accept: 'application/json' },
+      });
+      cache.nextRawPage++;
+      if (!res.ok) {
+        break;
+      }
+      const data = await res.json();
+      const rawRows: RawProviderAnime[] = data?.data || [];
+      if (rawRows.length === 0) {
+        cache.hasMoreProvider = false;
+        break;
+      }
 
-    if (!res.ok) {
-      throw new Error(`Provider returned HTTP ${res.status}`);
+      // Filter eligible releases only: genuine airing series & modern 2025/2026 releases
+      const eligible = rawRows.filter((r) => {
+        if (!isEligibleLatestRelease(r)) return false;
+        if (filter === 'sub' && (Number(r.is_sub) || 0) <= 0) return false;
+        if (filter === 'dub' && (Number(r.is_dub) || 0) <= 0) return false;
+        return true;
+      });
+
+      const normalized = eligible.map((r) => normalizeProviderRecord(r));
+      const deduplicated = deduplicateAnimeRecords(normalized);
+
+      // Append only unique anime to cache
+      const existingIds = new Set(cache.items.map((a) => a.id));
+      for (const item of deduplicated) {
+        if (!existingIds.has(item.id)) {
+          existingIds.add(item.id);
+          cache.items.push(item);
+        }
+      }
+
+      // Keep accumulated items sorted strictly by verified episode drop timestamp
+      cache.items = sortLatestEpisodes(cache.items, filter);
+    } catch (err) {
+      console.error('[LatestEpisodes] Stream error:', err);
+      break;
     }
-
-    const data = await res.json();
-    const rawRows: RawProviderAnime[] = data?.data || [];
-    const total = Number(data?.pagination?.total) || rawRows.length;
-    const totalPages = Number(data?.pagination?.total_pages) || Math.ceil(total / perPage) || 1;
-
-    // 1. Filter out prohibited adult/hentai content
-    const safeRows = rawRows.filter((r) => !isProhibitedContent(r));
-
-    // 2. Filter for SUB if filter === 'sub' (DUB-only updates excluded)
-    const filteredRows = filter === 'sub'
-      ? safeRows.filter((r) => Number(r.is_sub) > 0)
-      : filter === 'dub'
-      ? safeRows.filter((r) => Number(r.is_dub) > 0)
-      : safeRows;
-
-    // 3. Normalize raw entries
-    const normalized = filteredRows.map((r) => normalizeProviderRecord(r));
-
-    // 4. Deduplicate any mirror records
-    const deduplicated = deduplicateAnimeRecords(normalized);
-
-    // 5. Apply strict availability timestamp sorting
-    const sorted = sortLatestEpisodes(deduplicated, filter);
-
-    return {
-      items: sorted,
-      total,
-      totalPages,
-      currentPage: Math.min(safePage, totalPages),
-      hasMore: safePage < totalPages && rawRows.length > 0,
-    };
-  } catch (err) {
-    console.error('[LatestEpisodes] Fetch error:', err);
-    return {
-      items: [],
-      total: 0,
-      totalPages: 1,
-      currentPage: safePage,
-      hasMore: false,
-    };
   }
+
+  const startIndex = (safePage - 1) * perPage;
+  const pageItems = cache.items.slice(startIndex, startIndex + perPage);
+
+  return {
+    items: pageItems,
+    total: cache.items.length,
+    totalPages: Math.max(1, Math.ceil(cache.items.length / perPage)),
+    currentPage: safePage,
+    hasMore: cache.hasMoreProvider || startIndex + perPage < cache.items.length,
+  };
 }

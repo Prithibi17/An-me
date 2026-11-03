@@ -376,11 +376,6 @@ export function AnimeGrid({
                       style={{ width: `${Math.max(38, (pageInput.length || 1) * 10 + 20)}px` }}
                       className="h-7 text-center text-xs font-bold text-pink-400 bg-[#141824] border border-white/10 hover:border-pink-500/50 focus:border-pink-500 focus:bg-[#181d2c] focus:outline-none focus:ring-1 focus:ring-pink-500 rounded-lg transition-all cursor-text shadow-sm px-1"
                     />
-                    {totalPages && (
-                      <span className="text-[10px] text-white/30 ml-1.5 select-none font-medium">
-                        / {totalPages}
-                      </span>
-                    )}
                   </div>
                 ) : (
                   <span className="text-[11px] font-bold text-slate-400 ml-1 px-2 py-0.5 rounded-md bg-[#141824] border border-white/10">
