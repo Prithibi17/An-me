@@ -1,15 +1,16 @@
-# <p align="center"><img src="public/anme-icon.png" width="72" height="72" alt="An:me Logo" style="border-radius: 16px;" /><br>An:me Desktop</p>
+# <p align="center"><img src="public/anme-icon.png" width="80" height="80" alt="An:me Logo" style="border-radius: 18px;" /><br>An:me Desktop</p>
 
 <p align="center">
   <strong>A fast, lightweight, and modern desktop anime discovery & streaming client.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.0.0-rose?style=for-the-badge" alt="Version 1.0.0" />
-  <img src="https://img.shields.io/badge/Platform-Windows%20x64-blue?style=for-the-badge&logo=windows" alt="Platform Windows" />
+  <a href="https://github.com/Prithibi17/An-me/releases/latest"><img src="https://img.shields.io/badge/Version-1.0.2-rose?style=for-the-badge" alt="Version 1.0.2" /></a>
+  <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=for-the-badge" alt="Platforms" />
   <img src="https://img.shields.io/badge/Electron-45.2.1-47848F?style=for-the-badge&logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/React-19.3.1-61DAFB?style=for-the-badge&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TailwindCSS-3.4.19-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Tests-55%20Passing-brightgreen?style=for-the-badge" alt="Tests 55 Passing" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -17,7 +18,7 @@
 
 ## 📖 Overview
 
-**An:me Desktop** is an ultra-fast, aesthetically tuned anime exploration and streaming application engineered for the desktop. Built with **Electron**, **React 19**, and **Tailwind CSS**, it pairs a seamless frameless dark UI with instant episode loading, robust metadata discovery via the AniList GraphQL API, automated server failover handling, and complete local privacy.
+**An:me Desktop** is an ultra-fast, aesthetically tuned anime exploration and streaming application engineered for the desktop. Built with **Electron**, **React 19**, and **Tailwind CSS**, it pairs a seamless frameless dark UI with instant episode loading, robust metadata discovery via the AniList GraphQL API, smart English title heuristics, offline-first watch status tracking, and multiplatform desktop support.
 
 ---
 
@@ -43,42 +44,70 @@
 
 ## ✨ Features
 
-### 🖥️ Native Desktop Experience
+### 🖥️ Native Multiplatform Desktop Experience
+- **Cross-Platform**: Officially packaged for **Windows (x64)**, **macOS (Apple Silicon & Intel)**, and **Linux (x64)**.
+- **Windows Setup Wizard (`An-me-Setup.exe`)**: Single standalone setup installer that guides users through folder selection, creates Desktop and Start Menu shortcuts, and registers with Windows Installed Apps for clean uninstallation.
 - **Frameless Dark Window**: Custom sleek titlebar with smooth window dragging, minimize, maximize, and exit controls.
-- **Instant Launch**: Packaged using ASAR compression for sub-second launch times without file-scan delays.
-- **System Integration**: Native Windows notifications for episodes and watchlist updates, taskbar grouping, and high-resolution rounded taskbar/tray icons.
-- **Setup & Uninstaller Wizard**: Built-in 6-step modern setup wizard (`An-me Setup.exe`) and complete uninstaller registered directly with **Windows Settings → Installed Apps**.
+- **Instant Launch & ASAR Packaging**: High-performance ASAR archive distribution with sub-second startup times and zero file-scanning latency.
+- **Polished Cyberpunk Splash Screen**: Clean, single-layer neon aura and animated cards with smooth transitions into the main app.
 
-### 🎬 Anime Discovery (Powered by AniList GraphQL)
+### 🎬 Anime Discovery (AniList GraphQL Engine)
+- **Authoritative English Titles**: Intelligent linguistic heuristic engine (`titleHelper.ts`) that scores and prioritizes official English titles over Japanese Romaji transliterations and automatically filters out non-Latin scripts (Kanji, Kana, Thai).
+- **Accurate Episode Capping**: Strictly displays released episodes for ongoing broadcast series (e.g., 4 subbed / 3 dubbed) instead of displaying phantom future episode slots.
 - **Spotlight Hero Carousel**: Wide-screen backdrop carousel showcasing top trending and spotlight anime with quick-play triggers.
 - **Leaderboards & Top 10**: Filterable rankings across **Today**, **This Week**, and **This Month**.
-- **Trending Now & Season Highlights**: Curated sections with real-time score badges, episode counters, and format tags (TV, Movie, OVA).
-- **Interactive Weekly Airing Schedule**: Day-by-day broadcast calendar (Sunday to Saturday) with air times and episode counters.
-- **Deep Search & Filters**: Instant search with autocomplete dropdown and multi-criteria filters (Genre, Season, Year, Sort).
+- **Interactive Airing Schedule**: Day-by-day broadcast calendar (Sunday to Saturday) with air times and episode counts.
+- **Deep Search & Filters**: Fuzzy search with autocomplete dropdown and multi-criteria filters (Genre, Season, Year, Sort).
+- **Character & Relations Roster**: Full character rosters with voice actors and related franchise series.
 
 ### ⚡ Streaming & Video Player
-- **Multi-Server Streaming**: Seamless switching across multiple high-speed stream servers.
+- **Default Server 4**: All titles default to high-performance Server 4 upon launch with stable playback.
+- **Multi-Server Streaming**: Select and switch across available stream sources on demand.
 - **Audio Track Selection**: One-click toggle between **SUB** (Original with subtitles) and **DUB** (English dubbed).
-- **Automatic Server Failover**: Automatically detects video provider dropouts (HTTP 410 / 404 / 502) and silently failovers to the next healthy server with zero manual intervention.
-- **Episode Quick Jumper & Number Input**: Jump to any episode or type your desired episode number directly to jump forward instantly.
+- **Episode Quick Jumper & Number Input**: Jump to any episode or type your desired episode number directly to navigate instantly.
 
-### 📚 Local Library & History
-- **Watchlist Categorization**: Track your anime across *Watching*, *Plan to Watch*, *Completed*, *On Hold*, and *Dropped*.
-- **Resume Watching Timeline**: Automatically tracks exact watch progress per episode and lets you resume playback in one click.
-- **Local Persistence Microservice**: Fast, offline JSON storage microservice for user preferences, avatar customizations, and notification caching.
+### 👁️ Offline Watch Progress & Viewing History
+- **3-Tier Visual Indicators**:
+  - 🟦 **Watched**: Watched episodes are dimmed with a soft, transparent cyan-blue tint without distracting timer counters.
+  - 🎨 **Currently Watching**: Active playback episode is highlighted with an energetic **blue-to-pink** gradient border and glow.
+  - ⬛ **Yet to Watch**: Clean, standard appearance for unwatched episodes.
+- **Resume Playback**: Remembers your exact playback position and last watched episode locally on device.
+- **100% Offline Persistence**: Uses local storage microservices without requiring cloud logins or exposing viewing habits.
 
 ---
 
-## 📥 Download & Releases
+## 📥 Downloads & Releases
 
-Download the latest pre-built Windows installation executable:
+Download pre-built desktop packages from the [**GitHub Releases**](https://github.com/Prithibi17/An-me/releases/latest) page:
 
-| Release | Platform | Setup File | Type |
+| Operating System | Package | Type | Format |
 | :--- | :--- | :--- | :--- |
-| **v1.0.1** | Windows 10 / 11 (x64) | [**An-me-Setup.exe**](https://github.com/Prithibi17/An-me/releases/latest) | Standalone Installer |
+| **Windows 10 / 11 (x64)** | [**`An-me-Setup.exe`**](https://github.com/Prithibi17/An-me/releases/latest) | **Direct Setup Installer** | Single `.exe` (No zip needed) |
+| **Windows 10 / 11 (x64)** | `An-me-Windows-Portable-x64.zip` | Standalone Portable | `.zip` archive |
+| **macOS Apple Silicon** | `An-me-macOS-arm64.zip` | Native App Bundle (M1-M4) | `.zip` (.app) |
+| **macOS Intel** | `An-me-macOS-x64.zip` | Native App Bundle (x64) | `.zip` (.app) |
+| **Linux (x64)** | `An-me-Linux-x64.zip` | Standalone Bundle | `.zip` archive |
 
-> [!NOTE]
-> The setup file creates desktop and Start Menu shortcuts, registers the application with Windows Installed Apps for clean uninstallation, and occupies only ~253 MB of disk space.
+---
+
+## 🛠️ Installation Guide
+
+### Windows
+- **Single-File Installer**: Download **`An-me-Setup.exe`**, double-click, and follow the setup wizard.
+- **Portable Version**: Download and extract `An-me-Windows-Portable-x64.zip`, then double-click `An-me.exe`.
+
+### macOS
+1. Download `An-me-macOS-arm64.zip` (for Apple Silicon) or `An-me-macOS-x64.zip` (for Intel).
+2. Extract the zip archive to reveal `An-me.app`.
+3. Drag `An-me.app` into your `/Applications` folder and double-click to launch.
+
+### Linux
+1. Download and extract `An-me-Linux-x64.zip`.
+2. Open terminal in the extracted folder and run:
+   ```bash
+   chmod +x An-me
+   ./An-me
+   ```
 
 ---
 
@@ -88,39 +117,46 @@ Download the latest pre-built Windows installation executable:
 - [Node.js](https://nodejs.org/) (v18.0.0 or higher)
 - [Git](https://git-scm.com/)
 
-### 2. Clone the Repository
+### 2. Clone & Install
 ```bash
 git clone https://github.com/Prithibi17/An-me.git
 cd An-me
-```
-
-### 3. Install Dependencies
-```bash
 npm install
 ```
 
-### 4. Configure Streaming Providers
-For copyright and security protection, raw video streaming provider endpoints are omitted from public commits. Before running, copy the example template:
+### 3. Configure Streaming Providers
+For copyright and security protection, raw video streaming provider endpoints are omitted from public commits. Before running, copy the example templates:
 ```bash
 cp src/services/providers.example.ts src/services/providers.ts
 cp src/services/availability.example.ts src/services/availability.ts
 ```
-*(On Windows PowerShell, use `Copy-Item src/services/providers.example.ts src/services/providers.ts`)*
+*(On Windows PowerShell: `Copy-Item src/services/providers.example.ts src/services/providers.ts`)*
 
-### 5. Run the Application
+### 4. Run Development Builds
 ```bash
-# Run desktop development build (Vite build + Electron)
+# Run desktop Electron build (Vite build + Electron)
 npm run desktop
 
-# Or run Vite in web browser preview mode
+# Or run Vite development server in web browser mode
 npm run dev:web
 ```
 
-### 6. Package Executable
-To package your own standalone installer and binary:
+### 5. Run Automated Tests
 ```bash
-npm run build
-npx electron-packager . "An-me Setup" --platform=win32 --arch=x64 --icon=public/anme-icon.ico --out=dist-setup --overwrite --asar --ignore="^(src|node_modules|dist-setup|scripts|\.git)"
+npm test
+```
+*Executes all 55 tests covering intelligent search, chronological feeds, title heuristics, and watch progress tracking.*
+
+### 6. Package Desktop Installers
+```bash
+# Build Windows portable and setup installer
+npm run dist
+
+# Build Linux x64 package
+npm run package:linux
+
+# Build macOS packages (arm64 & x64)
+npm run package:mac
 ```
 
 ---
@@ -134,25 +170,26 @@ an-me-desktop/
 │   └── preload.cjs            # Secure contextBridge API (window controls, disk storage, installer bridge)
 ├── src/
 │   ├── components/
-│   │   ├── installer/
-│   │   │   ├── InstallerWizard.tsx   # 6-step modern setup wizard
-│   │   │   └── UninstallWizard.tsx   # Interactive uninstaller wizard
-│   │   ├── watch/
-│   │   │   └── WatchView.tsx         # Video player, failover logic & episode selector
-│   │   ├── details/                  # Anime detailed overview & cast
-│   │   ├── notifications/            # Episode notification drawer
-│   │   ├── profile/                  # User profile and avatar picker
-│   │   └── ...                       # Discovery cards, carousels, grids, schedules
+│   │   ├── installer/         # Setup and Uninstall wizards
+│   │   ├── watch/             # Video player & episode selector
+│   │   ├── details/           # Anime detail overview, cast, and relations
+│   │   ├── home/              # Spotlight, Continue Watching, trending strips
+│   │   ├── notifications/     # Episode notification drawer
+│   │   ├── profile/           # User profile and avatar picker
+│   │   └── SplashScreen.tsx   # Cinematic branded splash loader
 │   ├── services/
-│   │   ├── anilist.ts                # AniList GraphQL queries & episode mapper
-│   │   ├── providers.example.ts      # Stream provider interface template
-│   │   ├── availability.example.ts   # Catalog availability template
-│   │   ├── storage.ts                # Local storage & watchlist manager
-│   │   └── localStore.ts             # Electron persistent disk store client
-│   ├── types/                        # TypeScript type definitions
-│   ├── App.tsx                       # Main application shell
-│   └── main.tsx                      # App entry & installer / uninstaller router
-├── public/                           # Application icons, logos, and avatars
+│   │   ├── anilist.ts         # AniList GraphQL queries & character/relation mapper
+│   │   ├── titleHelper.ts     # Linguistic scoring engine for authentic English titles
+│   │   ├── watchProgress.ts   # 3-tier viewing status and timestamp persistence
+│   │   ├── latestEpisodes.ts  # Chronological episode aggregator & audio filters
+│   │   ├── searchEngine.ts    # Intelligent fuzzy search & typo correction
+│   │   ├── storage.ts         # Watchlist and preference state
+│   │   └── localStore.ts      # Offline persistent disk storage client
+│   ├── types/                 # TypeScript type definitions
+│   ├── App.tsx                # Main application shell
+│   └── main.tsx               # App entry & router
+├── tests/                     # 55 automated unit & integration test suites
+├── public/                    # High-res icons, splash art, and avatars
 └── package.json
 ```
 
@@ -160,12 +197,12 @@ an-me-desktop/
 
 ## 🔒 Security & Privacy
 
-- **No Tracking or Telemetry**: No third-party analytical trackers or advertising SDKs.
-- **Offline First**: All user watchlists, history, and preferences are stored exclusively on your local computer.
-- **Provider Protection**: Streaming extraction endpoints and proprietary resolvers are kept outside of source tracking.
+- **Zero Tracking**: No analytics, telemetry, or third-party tracking scripts.
+- **Offline First**: Watchlists, episode progress, and local preferences are stored locally on your machine.
+- **Provider Protection**: Streaming extraction endpoints and scrapers remain protected and untracked.
 
 ---
 
 ## 📜 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is open source and available under the [MIT License](LICENSE).
