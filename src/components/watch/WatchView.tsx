@@ -78,11 +78,6 @@ export function WatchView({
   const [selectedSubtitle, setSelectedSubtitle] = useState('English');
   const [similarAnimeList, setSimilarAnimeList] = useState<Anime[]>([]);
 
-  // Automatic Server Failover States (Error 410, file removed, server down)
-  const [autoSwitchNotice, setAutoSwitchNotice] = useState<string | null>(null);
-  const failoverLockRef = useRef<boolean>(false);
-  const failedServersForEpisodeRef = useRef<Set<string>>(new Set());
-
   // Dropdown states
   const [showServerMenu, setShowServerMenu] = useState(false);
   const [showTrackMenu, setShowTrackMenu] = useState(false);
@@ -247,121 +242,7 @@ export function WatchView({
   // Always reset to Server 4 when episode or anime changes, even if changed previously
   useEffect(() => {
     setSelectedServer(server4Id);
-    failedServersForEpisodeRef.current.clear();
-    failoverLockRef.current = false;
-    setAutoSwitchNotice(null);
   }, [currentAnime.id, currentEpisode, server4Id]);
-
-  const handleAutoFailover = (reason: string) => {
-    if (failoverLockRef.current) return;
-    failoverLockRef.current = true;
-
-    const currentServerId = selectedServer;
-    failedServersForEpisodeRef.current.add(currentServerId);
-
-    const currentIdx = AVAILABLE_SERVERS.findIndex((s) => s.id === currentServerId);
-    const currentNum = currentIdx >= 0 ? currentIdx + 1 : 1;
-
-    // Find next server that hasn't failed yet for this episode
-    let nextServer = null;
-    let nextServerIdx = -1;
-    for (let i = 1; i <= AVAILABLE_SERVERS.length; i++) {
-      const candidateIdx = (currentIdx + i) % AVAILABLE_SERVERS.length;
-      const candidate = AVAILABLE_SERVERS[candidateIdx];
-      if (!failedServersForEpisodeRef.current.has(candidate.id)) {
-        nextServer = candidate;
-        nextServerIdx = candidateIdx;
-        break;
-      }
-    }
-
-    if (!nextServer) {
-      console.warn('[WATCH] All servers exhausted for episode:', currentEpisode);
-      setAutoSwitchNotice(`All servers unavailable for Episode ${currentEpisode}. Please try another episode or audio track.`);
-      setTimeout(() => {
-        failoverLockRef.current = false;
-      }, 5000);
-      return;
-    }
-
-    const nextNum = nextServerIdx + 1;
-    console.log(`[WATCH FAILOVER] Auto-switching from Server ${currentNum} to Server ${nextNum} (${reason})`);
-    setAutoSwitchNotice(`Server ${currentNum} unavailable (Error 410). Automatically switched to Server ${nextNum}`);
-    
-    setIsIframeLoaded(false);
-    setSelectedServer(nextServer.id);
-    savePreferences({ preferredServer: nextServer.id, preferredTrack: track });
-
-    setTimeout(() => {
-      failoverLockRef.current = false;
-    }, 2800);
-  };
-
-  // 1. Electron Main Process Stream Error Interceptor (HTTP 410, 404, 502, network errors)
-  useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api?.onStreamError) return;
-
-    const unsubscribe = api.onStreamError((data: any) => {
-      console.log('[WATCH] Electron intercepted stream error:', data);
-      handleAutoFailover(data?.reason || 'HTTP error');
-    });
-
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
-  }, [selectedServer, currentEpisode, currentAnime.id]);
-
-  // 2. Iframe Content Scanner (inspects rendered error page for Error 410 / File unavailable)
-  useEffect(() => {
-    const scanIframe = () => {
-      try {
-        const iframe = document.getElementById('anime-player-iframe') as HTMLIFrameElement | null;
-        if (!iframe) return;
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (!doc) return;
-
-        const bodyText = (doc.body?.innerText || '') + ' ' + (doc.title || '');
-        if (
-          bodyText.includes('410') ||
-          bodyText.includes("We're Sorry") ||
-          bodyText.includes("can't find the file") ||
-          bodyText.includes('copyright violation') ||
-          bodyText.includes('deleted by the owner') ||
-          bodyText.includes('404 Not Found') ||
-          bodyText.includes('File was deleted')
-        ) {
-          handleAutoFailover('Embed displayed Error 410 (file unavailable)');
-        }
-      } catch (e) {
-        // Handled by Electron IPC interceptor
-      }
-    };
-
-    const interval = setInterval(scanIframe, 1000);
-    return () => clearInterval(interval);
-  }, [selectedServer, currentEpisode, currentAnime.id]);
-
-  // 3. PostMessage Error Listener
-  useEffect(() => {
-    const handleMessage = (e: MessageEvent) => {
-      try {
-        const payload = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (
-          payload?.event === 'error' ||
-          payload?.code === 410 ||
-          payload?.statusCode === 410 ||
-          payload?.type === 'PLAYER_ERROR'
-        ) {
-          handleAutoFailover('Player postMessage 410');
-        }
-      } catch {
-        // Ignore non-json
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [selectedServer, currentEpisode, currentAnime.id]);
 
   const handleSelectServer = (serverId: string) => {
     setSelectedServer(serverId);
@@ -461,14 +342,6 @@ export function WatchView({
           <div className="lg:col-span-8 flex flex-col gap-4">
             {/* 16:9 Video Player Frame */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl group">
-              {/* Auto Server Switch Alert Notice */}
-              {autoSwitchNotice && (
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-2.5 px-4 py-2 bg-[#121624]/95 border border-pink-500/50 text-white text-xs font-semibold rounded-full shadow-[0_0_20px_rgba(244,63,94,0.4)] backdrop-blur-md animate-fade-in pointer-events-none">
-                  <div className="w-2 h-2 rounded-full bg-pink-500 animate-ping" />
-                  <span className="text-pink-300 font-bold">{autoSwitchNotice}</span>
-                </div>
-              )}
-
               {!isIframeLoaded && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-10 text-center">
                   <div className="w-10 h-10 border-4 border-t-red-500 border-r-pink-500 border-b-blue-500 border-l-transparent rounded-full animate-spin mb-3" />
