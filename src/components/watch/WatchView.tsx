@@ -244,12 +244,13 @@ export function WatchView({
     server: selectedServer,
   });
 
-  // Reset failover state when anime or episode changes
+  // Always reset to Server 4 when episode or anime changes, even if changed previously
   useEffect(() => {
+    setSelectedServer(server4Id);
     failedServersForEpisodeRef.current.clear();
     failoverLockRef.current = false;
     setAutoSwitchNotice(null);
-  }, [currentAnime.id, currentEpisode]);
+  }, [currentAnime.id, currentEpisode, server4Id]);
 
   const handleAutoFailover = (reason: string) => {
     if (failoverLockRef.current) return;
@@ -672,7 +673,7 @@ export function WatchView({
 
                   let buttonStyle = 'bg-[#141721] hover:bg-[#1e2333] border border-white/5 text-slate-300 hover:text-white';
                   if (isActive) {
-                    buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 text-white font-black shadow-lg shadow-blue-600/35 border border-orange-400/80 scale-[1.02] ring-2 ring-orange-400/40';
+                    buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-500 to-pink-500 text-white font-black shadow-lg shadow-pink-500/30 border border-pink-400/80 scale-[1.02] ring-2 ring-pink-500/40';
                   } else if (isWatched) {
                     buttonStyle = 'bg-sky-400/10 hover:bg-sky-400/20 border border-sky-400/25 text-sky-200/70 opacity-60 hover:opacity-100 transition-opacity';
                   }

@@ -416,7 +416,7 @@ export function DetailsView({
 
                     let buttonStyle = 'bg-[#11151B] border-white/5 hover:border-white/20 hover:bg-[#161b24] text-slate-300 hover:text-white';
                     if (isResumeTarget) {
-                      buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 text-white font-black shadow-lg shadow-blue-600/35 border border-orange-400/80 scale-[1.02] ring-2 ring-orange-400/40';
+                      buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-500 to-pink-500 text-white font-black shadow-lg shadow-pink-500/30 border border-pink-400/80 scale-[1.02] ring-2 ring-pink-500/40';
                     } else if (isWatched) {
                       buttonStyle = 'bg-sky-400/10 hover:bg-sky-400/20 border border-sky-400/25 text-sky-200/70 opacity-60 hover:opacity-100 transition-opacity';
                     }
@@ -462,7 +462,7 @@ export function DetailsView({
 
                     let rowStyle = 'bg-[#11151B] border-white/5 hover:border-white/20 hover:bg-[#161b24] text-slate-300 hover:text-white';
                     if (isResumeTarget) {
-                      rowStyle = 'bg-gradient-to-r from-blue-950/40 via-indigo-950/40 to-amber-950/40 border-orange-400/60 text-white';
+                      rowStyle = 'bg-gradient-to-r from-blue-950/40 via-indigo-950/40 to-pink-950/40 border-pink-500/60 text-white';
                     } else if (isWatched) {
                       rowStyle = 'bg-sky-400/10 hover:bg-sky-400/15 border-sky-400/25 text-white opacity-60 hover:opacity-100 transition-opacity';
                     }
@@ -484,7 +484,7 @@ export function DetailsView({
                         ) : (
                           <div className={`w-12 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
                             isResumeTarget
-                              ? 'bg-gradient-to-br from-blue-600 to-amber-500 text-white border-orange-400/60'
+                              ? 'bg-gradient-to-br from-blue-600 to-pink-500 text-white border-pink-400/60'
                               : isWatched
                               ? 'bg-sky-950/40 border-sky-400/30 text-sky-300'
                               : 'bg-[#1a1f2b] border-white/10 text-slate-300'
@@ -495,13 +495,13 @@ export function DetailsView({
 
                         {/* Title and Ep Number */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-white group-hover:text-blue-300 truncate transition-colors">
+                          <p className="text-xs font-bold text-white group-hover:text-pink-300 truncate transition-colors">
                             {ep.title}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] text-slate-400 font-medium">Episode {ep.number}</span>
                             {isResumeTarget ? (
-                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-blue-600 to-amber-500 text-white border border-orange-400/40 flex items-center gap-1">
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-blue-600 to-pink-500 text-white border border-pink-400/40 flex items-center gap-1">
                                 <Play className="w-2.5 h-2.5 fill-current" />
                                 Current Episode
                               </span>
@@ -539,7 +539,7 @@ export function DetailsView({
                         </button>
 
                         <div className="shrink-0 pr-1">
-                          <Play className={`w-4 h-4 ${isResumeTarget ? 'text-amber-400 fill-amber-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                          <Play className={`w-4 h-4 ${isResumeTarget ? 'text-pink-400 fill-pink-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
                         </div>
                       </div>
                     );
