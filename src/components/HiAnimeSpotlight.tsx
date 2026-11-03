@@ -35,6 +35,9 @@ export function HiAnimeSpotlight({ spotlightList, onPlay, onOpenDetails }: HiAni
   const title = getAnimeTitle(current);
   const bannerUrl = current.bannerImage || current.coverImage.extraLarge || current.coverImage.large;
   const isSaved = savedIds.includes(current.id);
+  const subCount = current.subEpisodeCount || (current.nextAiringEpisode?.episode
+    ? current.nextAiringEpisode.episode - 1
+    : current.episodes || (current.dubEpisodeCount ? current.dubEpisodeCount : 12));
 
   const cleanDescription = (current.description || '')
     .replace(/<br\s*\/?>/gi, ' ')
@@ -107,7 +110,7 @@ export function HiAnimeSpotlight({ spotlightList, onPlay, onOpenDetails }: HiAni
               {/* Pink & Blue Badges */}
               <div className="flex items-center gap-1">
                 <span className="px-2 py-0.5 rounded bg-pink-600 text-white text-[10px] font-black flex items-center gap-0.5 shadow-sm shadow-pink-600/30">
-                  <Subtitles className="w-2.5 h-2.5" /> SUB {current.episodes || 12}
+                  <Subtitles className="w-2.5 h-2.5" /> SUB {subCount}
                 </span>
                 {(current.dubEpisodeCount || 0) > 0 && (
                   <span className="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-black flex items-center gap-0.5 shadow-sm shadow-blue-600/30">

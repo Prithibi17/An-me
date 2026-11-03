@@ -24,6 +24,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Anime } from '../../types/anime';
+import { getAnimeTitle } from '../../services/titleHelper';
 import { getStreamUrl, AVAILABLE_SERVERS } from '../../services/providers';
 import { getAnimeEpisodesList, getAnimeEpisodeCount, getAnimeDetails, getPopularSeasonAnime } from '../../services/anilist';
 import { getSingleAnimeAvailability, enrichAnimeAvailability } from '../../services/availability';
@@ -702,7 +703,7 @@ export function WatchView({
               {/* All Similar Anime Cards Grid (Show all at once in rows of 4) */}
               <div className="grid grid-cols-4 gap-2.5 mt-1 max-h-[580px] overflow-y-auto pr-1">
                 {similarAnimeList.map((similar) => {
-                  const simTitle = similar.title.english || similar.title.romaji || 'Anime';
+                  const simTitle = getAnimeTitle(similar);
                   return (
                     <div
                       key={similar.id}

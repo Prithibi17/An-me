@@ -8,7 +8,10 @@
     "build": "vite build",
     "desktop": "npm run build && electron .",
     "start": "electron .",
-    "test": "node --experimental-strip-types --test tests/latestEpisodes.test.mjs tests/intelligentSearch.test.mjs tests/watchProgress.test.mjs tests/titleHelper.test.mjs"
+    "test": "node --experimental-strip-types --test tests/latestEpisodes.test.mjs tests/intelligentSearch.test.mjs tests/watchProgress.test.mjs tests/titleHelper.test.mjs",
+    "package:win": "npm run build && electron-packager . \"An-me\" --platform=win32 --arch=x64 --out=dist-bin --overwrite --asar --icon=public/anme-icon.ico --ignore=\"^/(src|tests|scratch|dist-setup|dist-bin|\\.git)\"",
+    "package:setup": "npm run build && electron-packager . \"An-me Setup\" --platform=win32 --arch=x64 --out=dist-setup --overwrite --asar --icon=public/anme-icon.ico --ignore=\"^/(src|tests|scratch|dist-setup|dist-bin|\\.git)\"",
+    "dist": "npm run package:win && npm run package:setup"
   },
   "keywords": [
     "anime",
