@@ -7,6 +7,8 @@ scratch/
 # Build artifacts & packaged binaries (releases hosted separately)
 dist/
 dist-setup/
+dist-bin/
+dist-packages/
 
 # Video streaming provider sources & scrapers (Protected / Proprietary)
 src/services/providers.ts

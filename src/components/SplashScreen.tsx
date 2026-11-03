@@ -6,7 +6,6 @@ import cardRed from '../assets/splash/card-red.png';
 import bracketLeft from '../assets/splash/bracket-left.png';
 import bracketRight from '../assets/splash/bracket-right.png';
 import dashedPlaceholder from '../assets/splash/dashed-placeholder.png';
-import splashMaster from '../assets/splash/splash-master.webp';
 
 interface SplashScreenProps {
   isLoading: boolean;
@@ -237,14 +236,6 @@ export function SplashScreen({ isLoading, onFinished }: SplashScreenProps) {
           />
         </div>
 
-        {/* Master Graphic Blend during Phase 4 (Identical pixel-lock to master reference image) */}
-        <img
-          src={splashMaster}
-          alt="An:me Loading"
-          className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-500 ${
-            cardPhase === 4 ? 'opacity-90' : 'opacity-0'
-          }`}
-        />
 
         {/* Dynamic Looping Cards Container */}
         <div className="absolute inset-0 w-full h-full pointer-events-none">
