@@ -58,13 +58,11 @@ async function fetchAniList<T>(query: string, variables: Record<string, any> = {
     body: JSON.stringify({ query, variables }),
   });
 
-  if (!response.ok) {
-    throw new Error(`AniList query failed: ${response.status} ${response.statusText}`);
-  }
+  const json = await response.json().catch(() => null);
 
-  const json = await response.json();
-  if (json.errors) {
-    throw new Error(json.errors[0]?.message || 'GraphQL error');
+  if (!response.ok || json?.errors) {
+    const errMsg = json?.errors?.[0]?.message || `AniList query failed: ${response.status} ${response.statusText}`;
+    throw new Error(errMsg);
   }
 
   return json.data;
@@ -246,29 +244,66 @@ export async function getAnimeDetails(id: number): Promise<Anime> {
     query ($id: Int) {
       Media(id: $id, type: ANIME) {
         ${ANIME_FIELDS}
-        characters(sort: ROLE, perPage: 8) {
-          nodes {
-            id
-            name {
-              full
-              native
-            }
-            image {
-              medium
-              large
-            }
+        characters(sort: ROLE, perPage: 24) {
+          edges {
             role
+            node {
+              id
+              name {
+                full
+                native
+              }
+              image {
+                medium
+                large
+              }
+            }
           }
         }
         relations {
-          nodes {
-            ${ANIME_FIELDS}
+          edges {
+            relationType
+            node {
+              id
+              idMal
+              title {
+                romaji
+                english
+                native
+                userPreferred
+              }
+              coverImage {
+                extraLarge
+                large
+                medium
+              }
+              bannerImage
+              format
+              status
+              episodes
+            }
           }
         }
         recommendations(sort: RATING_DESC, perPage: 24) {
           nodes {
             mediaRecommendation {
-              ${ANIME_FIELDS}
+              id
+              idMal
+              title {
+                romaji
+                english
+                native
+                userPreferred
+              }
+              coverImage {
+                extraLarge
+                large
+                medium
+              }
+              bannerImage
+              format
+              status
+              episodes
             }
           }
         }
@@ -276,8 +311,26 @@ export async function getAnimeDetails(id: number): Promise<Anime> {
     }
   `;
 
-  const data = await fetchAniList<{ Media: Anime }>(query, { id });
-  return data.Media;
+  const data = await fetchAniList<{ Media: any }>(query, { id });
+  const raw = data.Media;
+
+  const characterNodes: CharacterItem[] = raw.characters?.edges?.map((edge: any) => ({
+    id: edge.node.id,
+    name: edge.node.name,
+    image: edge.node.image,
+    role: edge.role || 'CHARACTER',
+  })) || raw.characters?.nodes || [];
+
+  const relationNodes: Anime[] = raw.relations?.edges?.map((edge: any) => ({
+    ...edge.node,
+    relationType: edge.relationType,
+  })) || raw.relations?.nodes || [];
+
+  return {
+    ...raw,
+    characters: { nodes: characterNodes },
+    relations: { nodes: relationNodes },
+  };
 }
 
 export async function getAiringSchedule(startOfWeek: number, endOfWeek: number): Promise<Array<{
@@ -350,15 +403,47 @@ export async function getAiringSchedule(startOfWeek: number, endOfWeek: number):
 }
 
 export function getAnimeEpisodeCount(anime: Anime): number {
+  // 1. Verified available released episodes from provider
+  const availableCount = Math.max(
+    anime.subEpisodeCount || 0,
+    anime.dubEpisodeCount || 0,
+    anime.latestEpisodeNumber || 0
+  );
+
+  // 2. Airing countdown: if next episode is N, currently released is N - 1
   if (anime.nextAiringEpisode?.episode) {
-    return Math.max(1, anime.nextAiringEpisode.episode - 1);
+    const nextAiring = Math.max(1, anime.nextAiringEpisode.episode - 1);
+    if (availableCount > 0) {
+      return Math.min(availableCount, nextAiring);
+    }
+    return nextAiring;
   }
+
+  // 3. If currently releasing or unconfirmed status, never show unreleased upcoming episodes
+  if (availableCount > 0 && (!anime.status || anime.status === 'RELEASING' || anime.status === 'NOT_YET_RELEASED')) {
+    return availableCount;
+  }
+
+  if (anime.status === 'RELEASING' && availableCount > 0) {
+    return availableCount;
+  }
+
+  // 4. If completed/finished, use full episodes count
   if (anime.episodes && anime.episodes > 0) {
+    if (anime.status === 'RELEASING' && availableCount > 0) {
+      return availableCount;
+    }
     return anime.episodes;
   }
+
+  if (availableCount > 0) {
+    return availableCount;
+  }
+
   if (anime.streamingEpisodes && anime.streamingEpisodes.length > 0) {
     return anime.streamingEpisodes.length;
   }
+
   return 12;
 }
 

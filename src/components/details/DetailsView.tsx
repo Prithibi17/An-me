@@ -242,7 +242,7 @@ export function DetailsView({
             { id: 'overview', label: 'Overview' },
             { id: 'episodes', label: 'Episodes', count: totalEpisodes },
             { id: 'characters', label: 'Characters', count: details.characters?.nodes?.length },
-            { id: 'related', label: 'Related', count: details.relations?.nodes?.length },
+            { id: 'related', label: 'Related', count: (details.relations?.nodes?.length || 0) + (details.recommendations?.nodes?.filter((r) => r.mediaRecommendation?.id).length || 0) },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -556,16 +556,19 @@ export function DetailsView({
                 details.characters.nodes.map((char) => (
                   <div
                     key={char.id}
-                    className="p-2.5 rounded-xl bg-[#11151B] border border-white/5 flex items-center gap-3"
+                    className="p-2.5 rounded-xl bg-[#11151B] border border-white/5 flex items-center gap-3 hover:border-pink-500/30 transition-colors"
                   >
                     <img
-                      src={char.image?.medium}
+                      src={char.image?.large || char.image?.medium || './anme-logo-dark.png'}
                       alt={char.name.full}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = './anme-logo-dark.png';
+                      }}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-black/40"
                     />
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-white truncate">{char.name.full}</p>
-                      <p className="text-[10px] text-blue-400 capitalize">{char.role?.toLowerCase()}</p>
+                      <p className="text-[10px] text-pink-400 capitalize font-medium">{char.role?.toLowerCase() || 'character'}</p>
                     </div>
                   </div>
                 ))
@@ -577,37 +580,96 @@ export function DetailsView({
             </div>
           )}
 
-          {/* TAB: Related Anime */}
+          {/* TAB: Related Anime & Recommendations */}
           {activeTab === 'related' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {details.relations?.nodes && details.relations.nodes.length > 0 ? (
-                details.relations.nodes.map((rel) => {
-                  const relTitle = rel.title.english || rel.title.romaji || 'Anime';
-                  return (
-                    <div
-                      key={rel.id}
-                      onClick={() => onSelectRelated(rel)}
-                      className="group cursor-pointer flex flex-col"
-                    >
-                      <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-[#11151B] border border-white/5 group-hover:border-pink-500/50 transition-colors">
-                        <img
-                          src={rel.coverImage.large || rel.coverImage.medium}
-                          alt={relTitle}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      </div>
-                      <h4 className="text-xs font-bold text-white truncate mt-2 group-hover:text-pink-400 transition-colors">
-                        {relTitle}
-                      </h4>
-                      <p className="text-[10px] text-blue-400">{rel.format || 'Anime'}</p>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-full py-12 text-center text-xs text-slate-500">
-                  No related titles available.
+            <div className="space-y-6">
+              {/* 1. Franchise Relations (Prequels, Sequels, Adaptations) */}
+              {details.relations?.nodes && details.relations.nodes.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                    Franchise Relations ({details.relations.nodes.length})
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {details.relations.nodes.map((rel: any) => {
+                      const relTitle = rel.title?.english || rel.title?.romaji || rel.title?.native || 'Anime';
+                      return (
+                        <div
+                          key={rel.id}
+                          onClick={() => onSelectRelated(rel)}
+                          className="group cursor-pointer flex flex-col"
+                        >
+                          <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-[#11151B] border border-white/5 group-hover:border-pink-500/50 transition-colors shadow-md">
+                            <img
+                              src={rel.coverImage?.large || rel.coverImage?.medium || './anme-logo-dark.png'}
+                              alt={relTitle}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = './anme-logo-dark.png';
+                              }}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            {rel.relationType && (
+                              <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-sm border border-white/10 text-[9px] font-bold text-pink-300 uppercase">
+                                {rel.relationType.replace(/_/g, ' ')}
+                              </div>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-bold text-white truncate mt-2 group-hover:text-pink-400 transition-colors">
+                            {relTitle}
+                          </h4>
+                          <p className="text-[10px] text-blue-400 capitalize">{rel.format || 'Anime'}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
+
+              {/* 2. Recommended Anime for this Title */}
+              {details.recommendations?.nodes && details.recommendations.nodes.some((n) => n.mediaRecommendation?.id) && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                    Recommended For You
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {details.recommendations.nodes
+                      .filter((n) => n.mediaRecommendation && n.mediaRecommendation.id)
+                      .slice(0, 18)
+                      .map((n) => {
+                        const rec = n.mediaRecommendation!;
+                        const recTitle = rec.title?.english || rec.title?.romaji || rec.title?.native || 'Anime';
+                        return (
+                          <div
+                            key={rec.id}
+                            onClick={() => onSelectRelated(rec)}
+                            className="group cursor-pointer flex flex-col"
+                          >
+                            <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-[#11151B] border border-white/5 group-hover:border-pink-500/50 transition-colors shadow-md">
+                              <img
+                                src={rec.coverImage?.large || rec.coverImage?.medium || './anme-logo-dark.png'}
+                                alt={recTitle}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = './anme-logo-dark.png';
+                                }}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </div>
+                            <h4 className="text-xs font-bold text-white truncate mt-2 group-hover:text-pink-400 transition-colors">
+                              {recTitle}
+                            </h4>
+                            <p className="text-[10px] text-blue-400">{rec.format || 'Anime'}</p>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {(!details.relations?.nodes || details.relations.nodes.length === 0) &&
+                (!details.recommendations?.nodes || !details.recommendations.nodes.some((n) => n.mediaRecommendation?.id)) && (
+                  <div className="py-12 text-center text-xs text-slate-500">
+                    No related or recommended titles available.
+                  </div>
+                )}
             </div>
           )}
         </div>
