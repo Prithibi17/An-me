@@ -213,14 +213,7 @@ export function DetailsView({
               >
                 <Play className="w-4 h-4 fill-white" />
                 {resumeInfo ? (
-                  <span className="flex items-center gap-1.5">
-                    <span>Resume Ep {resumeEpisode}</span>
-                    {resumeInfo.progressPercent > 0 && (
-                      <span className="px-1.5 py-0.2 rounded bg-black/40 text-[10px] font-bold">
-                        {resumeInfo.progressPercent}%
-                      </span>
-                    )}
-                  </span>
+                  <span>Resume Ep {resumeEpisode}</span>
                 ) : (
                   <span>Watch Ep 1</span>
                 )}
@@ -418,54 +411,44 @@ export function DetailsView({
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
                   {(searchEp ? filteredEpisodes : filteredEpisodes.slice(selectedRange * episodesPerPage, (selectedRange + 1) * episodesPerPage)).map((ep) => {
                     const epProg = getEpisodeProgress(details.id, ep.number);
-                    const status: EpisodeWatchStatus = epProg?.status || 'unwatched';
+                    const isWatched = epProg?.status === 'watched';
                     const isResumeTarget = resumeInfo?.episode === ep.number;
 
-                    let buttonStyle = 'bg-[#11151B] border-white/5 hover:border-pink-500/50 hover:bg-[#161b24] text-slate-300 hover:text-white';
-                    if (status === 'watched') {
-                      buttonStyle = 'bg-[#0f1f1d] border-emerald-500/40 text-emerald-300 hover:bg-[#142926] shadow-sm';
-                    } else if (status === 'watching') {
-                      buttonStyle = 'bg-[#201529] border-pink-500/50 text-pink-300 hover:bg-[#2b1c37] shadow-sm';
+                    let buttonStyle = 'bg-[#11151B] border-white/5 hover:border-white/20 hover:bg-[#161b24] text-slate-300 hover:text-white';
+                    if (isResumeTarget) {
+                      buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 text-white font-black shadow-lg shadow-blue-600/35 border border-orange-400/80 scale-[1.02] ring-2 ring-orange-400/40';
+                    } else if (isWatched) {
+                      buttonStyle = 'bg-sky-400/10 hover:bg-sky-400/20 border border-sky-400/25 text-sky-200/70 opacity-60 hover:opacity-100 transition-opacity';
                     }
 
                     return (
                       <button
                         key={ep.number}
                         onClick={() => onPlayEpisode(details, ep.number)}
-                        className={`group relative p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${buttonStyle}`}
+                        className={`group relative p-3 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${buttonStyle}`}
                         title={
-                          status === 'watched'
-                            ? `Episode ${ep.number}: Completely Watched`
-                            : status === 'watching'
-                            ? `Episode ${ep.number}: Currently Watching (${epProg?.progressPercent || 0}%)`
-                            : `Episode ${ep.number}: Yet to Watch`
+                          isResumeTarget
+                            ? `Episode ${ep.number}: Next to Watch`
+                            : isWatched
+                            ? `Episode ${ep.number}: Watched`
+                            : `Episode ${ep.number}`
                         }
                       >
-                        <div className="flex items-center gap-1">
-                          {status === 'watched' ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
-                          ) : status === 'watching' ? (
-                            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+                        <div className="flex items-center gap-1.5">
+                          {isResumeTarget ? (
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                          ) : isWatched ? (
+                            <Check className="w-2.5 h-2.5 text-sky-400" />
                           ) : null}
                           <span className="text-xs font-black">
                             EP {ep.number}
                           </span>
                         </div>
                         {ep.title !== `Episode ${ep.number}` && (
-                          <span className="text-[10px] text-slate-400 truncate w-full text-center mt-0.5">
+                          <span className="text-[10px] text-slate-400 truncate w-full text-center mt-1">
                             {ep.title}
                           </span>
                         )}
-                        {/* Status label under EP */}
-                        <span className={`text-[9px] font-extrabold mt-1 px-1.5 py-0.2 rounded ${
-                          status === 'watched'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : status === 'watching'
-                            ? 'bg-pink-500/20 text-pink-300'
-                            : 'bg-white/5 text-slate-500'
-                        }`}>
-                          {status === 'watched' ? 'Watched' : status === 'watching' ? `${epProg?.progressPercent}%` : 'Unwatched'}
-                        </span>
                       </button>
                     );
                   })}
@@ -474,19 +457,21 @@ export function DetailsView({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {(searchEp ? filteredEpisodes : filteredEpisodes.slice(selectedRange * episodesPerPage, (selectedRange + 1) * episodesPerPage)).map((ep) => {
                     const epProg = getEpisodeProgress(details.id, ep.number);
-                    const status: EpisodeWatchStatus = epProg?.status || 'unwatched';
+                    const isWatched = epProg?.status === 'watched';
+                    const isResumeTarget = resumeInfo?.episode === ep.number;
+
+                    let rowStyle = 'bg-[#11151B] border-white/5 hover:border-white/20 hover:bg-[#161b24] text-slate-300 hover:text-white';
+                    if (isResumeTarget) {
+                      rowStyle = 'bg-gradient-to-r from-blue-950/40 via-indigo-950/40 to-amber-950/40 border-orange-400/60 text-white';
+                    } else if (isWatched) {
+                      rowStyle = 'bg-sky-400/10 hover:bg-sky-400/15 border-sky-400/25 text-white opacity-60 hover:opacity-100 transition-opacity';
+                    }
 
                     return (
                       <div
                         key={ep.number}
                         onClick={() => onPlayEpisode(details, ep.number)}
-                        className={`group flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
-                          status === 'watched'
-                            ? 'bg-[#0f1f1d]/70 border-emerald-500/30 text-white'
-                            : status === 'watching'
-                            ? 'bg-[#201529]/70 border-pink-500/40 text-white'
-                            : 'bg-[#11151B] border-white/5 hover:border-blue-500/50 hover:bg-[#161b24] text-slate-300 hover:text-white'
-                        }`}
+                        className={`group flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${rowStyle}`}
                       >
                         {/* Thumbnail or Number Box */}
                         {ep.thumbnail ? (
@@ -498,10 +483,10 @@ export function DetailsView({
                           </div>
                         ) : (
                           <div className={`w-12 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
-                            status === 'watched'
-                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400'
-                              : status === 'watching'
-                              ? 'bg-pink-950/40 border-pink-500/40 text-pink-400'
+                            isResumeTarget
+                              ? 'bg-gradient-to-br from-blue-600 to-amber-500 text-white border-orange-400/60'
+                              : isWatched
+                              ? 'bg-sky-950/40 border-sky-400/30 text-sky-300'
                               : 'bg-[#1a1f2b] border-white/10 text-slate-300'
                           }`}>
                             <span className="text-xs font-black">{ep.number}</span>
@@ -510,20 +495,26 @@ export function DetailsView({
 
                         {/* Title and Ep Number */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-white group-hover:text-pink-300 truncate transition-colors">
+                          <p className="text-xs font-bold text-white group-hover:text-blue-300 truncate transition-colors">
                             {ep.title}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] text-slate-400 font-medium">Episode {ep.number}</span>
-                            <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
-                              status === 'watched'
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : status === 'watching'
-                                ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
-                                : 'bg-white/5 text-slate-500'
-                            }`}>
-                              {status === 'watched' ? 'Watched' : status === 'watching' ? `Watching (${epProg?.progressPercent}%)` : 'Yet to Watch'}
-                            </span>
+                            {isResumeTarget ? (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-blue-600 to-amber-500 text-white border border-orange-400/40 flex items-center gap-1">
+                                <Play className="w-2.5 h-2.5 fill-current" />
+                                Current Episode
+                              </span>
+                            ) : isWatched ? (
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-400/20 text-sky-300 border border-sky-400/30 flex items-center gap-1">
+                                <Check className="w-2.5 h-2.5 text-sky-400" />
+                                Watched
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/5 text-slate-500">
+                                Yet to Watch
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -531,24 +522,24 @@ export function DetailsView({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (status === 'watched') {
+                            if (isWatched) {
                               markEpisodeUnwatched(details.id, ep.number);
                             } else {
                               markEpisodeWatched(details, ep.number);
                             }
                           }}
                           className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            status === 'watched'
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            isWatched
+                              ? 'bg-sky-400/20 text-sky-300 border-sky-400/40'
                               : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                           }`}
-                          title={status === 'watched' ? "Mark as Yet to Watch" : "Mark as Watched"}
+                          title={isWatched ? "Mark as Yet to Watch" : "Mark as Watched"}
                         >
                           <Check className="w-3.5 h-3.5" />
                         </button>
 
                         <div className="shrink-0 pr-1">
-                          <Play className={`w-4 h-4 ${status === 'watching' ? 'text-pink-400 fill-pink-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                          <Play className={`w-4 h-4 ${isResumeTarget ? 'text-amber-400 fill-amber-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
                         </div>
                       </div>
                     );

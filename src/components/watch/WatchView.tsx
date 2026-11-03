@@ -60,7 +60,8 @@ export function WatchView({
   const prefs = getPreferences();
   const [currentAnime, setCurrentAnime] = useState<Anime>(anime);
   const hasDub = Boolean((currentAnime.dubEpisodeCount || 0) > 0);
-  const [selectedServer, setSelectedServer] = useState<string>(prefs.preferredServer || 'megaplay-ani');
+  const server4Id = AVAILABLE_SERVERS[3]?.id || 'zokoanime-mal';
+  const [selectedServer, setSelectedServer] = useState<string>(prefs.preferredServer || server4Id);
   const [track, setTrack] = useState<'sub' | 'dub'>(hasDub ? prefs.preferredTrack : 'sub');
 
   // If anime does not have dub available, force track to 'sub'
@@ -176,45 +177,40 @@ export function WatchView({
   const [currentProgress, setCurrentProgress] = useState(() => getEpisodeProgress(currentAnime.id, currentEpisode));
   const [, setWatchTick] = useState(0);
 
-  // Sync episode progress when anime or episode changes
+  // Sync episode progress when anime or episode changes, reset iframe loaded
   useEffect(() => {
     setIsIframeLoaded(false);
-    const existing = getEpisodeProgress(currentAnime.id, currentEpisode);
-    const initialTime = existing ? existing.currentTime : 0;
-    const initialDuration = (currentAnime.duration || 24) * 60;
-    const ep = recordEpisodeProgress(currentAnime, currentEpisode, initialTime, initialDuration);
-    setCurrentProgress(ep);
+    setCurrentProgress(getEpisodeProgress(currentAnime.id, currentEpisode));
   }, [currentAnime.id, currentEpisode]);
 
-  // Periodic watch progress heartbeat when playing
-  useEffect(() => {
-    if (!isIframeLoaded) return;
-
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      setCurrentProgress((prev) => {
-        const duration = (currentAnime.duration || 24) * 60;
-        const nextTime = Math.min(duration, (prev?.currentTime || 0) + 5);
-        const updated = recordEpisodeProgress(currentAnime, currentEpisode, nextTime, duration);
-        return updated;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [currentAnime.id, currentEpisode, isIframeLoaded]);
-
-  // Listen for video player events (timeupdate, ended)
+  // Listen for video player events (ended, timeupdate near completion)
   useEffect(() => {
     const handlePlayerMessage = (e: MessageEvent) => {
       try {
         const payload = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (payload?.event === 'timeupdate' && typeof payload?.currentTime === 'number') {
-          const duration = typeof payload?.duration === 'number' ? payload.duration : (currentAnime.duration || 24) * 60;
-          const updated = recordEpisodeProgress(currentAnime, currentEpisode, payload.currentTime, duration);
-          setCurrentProgress(updated);
-        } else if (payload?.event === 'ended' || payload?.type === 'video_ended') {
+        const eventName = payload?.event || payload?.type || '';
+
+        // Real video completed event from player embed
+        if (
+          eventName === 'ended' ||
+          eventName === 'video_ended' ||
+          eventName === 'player:ended' ||
+          eventName === 'finish' ||
+          payload?.ended === true
+        ) {
           markEpisodeWatched(currentAnime, currentEpisode);
           setCurrentProgress(getEpisodeProgress(currentAnime.id, currentEpisode));
+        } else if (
+          eventName === 'timeupdate' &&
+          typeof payload?.currentTime === 'number' &&
+          typeof payload?.duration === 'number' &&
+          payload.duration > 0
+        ) {
+          // If playback naturally reaches near end (>= 92%), mark as completed
+          if (payload.currentTime / payload.duration >= 0.92) {
+            markEpisodeWatched(currentAnime, currentEpisode);
+            setCurrentProgress(getEpisodeProgress(currentAnime.id, currentEpisode));
+          }
         }
       } catch {
         // non-json
@@ -500,6 +496,10 @@ export function WatchView({
                 <div className="relative" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => {
+                      const server4 = AVAILABLE_SERVERS[3]?.id || 'zokoanime-mal';
+                      if (selectedServer !== server4) {
+                        handleSelectServer(server4);
+                      }
                       setShowServerMenu(!showServerMenu);
                       setShowTrackMenu(false);
                       setShowSubMenu(false);
@@ -600,27 +600,15 @@ export function WatchView({
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                     currentProgress?.status === 'watched'
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                      ? 'bg-sky-400/15 border-sky-400/30 text-sky-200 hover:bg-sky-400/25'
                       : 'bg-[#161a24] hover:bg-[#1e2333] border-white/10 text-slate-300 hover:text-white'
                   }`}
-                  title={currentProgress?.status === 'watched' ? "Mark as Yet to Watch" : "Mark as Completely Watched"}
+                  title={currentProgress?.status === 'watched' ? "Mark as Yet to Watch" : "Mark as Completed"}
                 >
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className={`w-3.5 h-3.5 ${currentProgress?.status === 'watched' ? 'text-sky-400' : 'text-slate-400'}`} />
                   <span>{currentProgress?.status === 'watched' ? 'Watched' : 'Mark Watched'}</span>
                 </button>
               </div>
-
-              {/* Status info / Resume timestamp indicator */}
-              {currentProgress && currentProgress.currentTime > 5 && (
-                <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
-                  <span>
-                    {currentProgress.status === 'watched'
-                      ? 'Episode Completed'
-                      : `Watching: ${Math.floor(currentProgress.currentTime / 60)}:${String(Math.floor(currentProgress.currentTime % 60)).padStart(2, '0')} (${currentProgress.progressPercent}%)`}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Episodes Grid Section matching screenshot */}
@@ -680,15 +668,13 @@ export function WatchView({
                 {rangeEpisodes.map((epNum) => {
                   const isActive = epNum === currentEpisode;
                   const epProg = getEpisodeProgress(currentAnime.id, epNum);
-                  const status: EpisodeWatchStatus = epProg?.status || 'unwatched';
+                  const isWatched = epProg?.status === 'watched';
 
                   let buttonStyle = 'bg-[#141721] hover:bg-[#1e2333] border border-white/5 text-slate-300 hover:text-white';
                   if (isActive) {
-                    buttonStyle = 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white font-black shadow-lg shadow-pink-600/35 border-transparent scale-[1.02] ring-1 ring-pink-500';
-                  } else if (status === 'watched') {
-                    buttonStyle = 'bg-[#0f1f1d] hover:bg-[#142926] border border-emerald-500/40 text-emerald-300 shadow-sm';
-                  } else if (status === 'watching') {
-                    buttonStyle = 'bg-[#201529] hover:bg-[#2b1c37] border border-pink-500/40 text-pink-300 shadow-sm';
+                    buttonStyle = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 text-white font-black shadow-lg shadow-blue-600/35 border border-orange-400/80 scale-[1.02] ring-2 ring-orange-400/40';
+                  } else if (isWatched) {
+                    buttonStyle = 'bg-sky-400/10 hover:bg-sky-400/20 border border-sky-400/25 text-sky-200/70 opacity-60 hover:opacity-100 transition-opacity';
                   }
 
                   return (
@@ -696,33 +682,22 @@ export function WatchView({
                       key={epNum}
                       onClick={() => onSelectEpisode(epNum)}
                       title={
-                        status === 'watched'
-                          ? `Episode ${epNum}: Completely Watched`
-                          : status === 'watching'
-                          ? `Episode ${epNum}: Currently Watching (${epProg?.progressPercent || 0}%)`
-                          : `Episode ${epNum}: Yet to Watch`
+                        isActive
+                          ? `Episode ${epNum}: Playing Now`
+                          : isWatched
+                          ? `Episode ${epNum}: Watched`
+                          : `Episode ${epNum}`
                       }
                       className={`relative py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${buttonStyle}`}
                     >
                       <div className="flex items-center gap-1">
                         {isActive ? (
                           <Play className="w-2.5 h-2.5 fill-current" />
-                        ) : status === 'watched' ? (
-                          <Check className="w-2.5 h-2.5 text-emerald-400" />
-                        ) : status === 'watching' ? (
-                          <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+                        ) : isWatched ? (
+                          <Check className="w-2.5 h-2.5 text-sky-400" />
                         ) : null}
                         <span>{epNum}</span>
                       </div>
-                      {/* Mini progress bar for in-progress episodes */}
-                      {status === 'watching' && epProg && !isActive && (
-                        <div className="w-4/5 h-0.5 bg-white/10 rounded-full overflow-hidden mt-0.5">
-                          <div
-                            className="h-full bg-pink-500 rounded-full"
-                            style={{ width: `${epProg.progressPercent}%` }}
-                          />
-                        </div>
-                      )}
                     </button>
                   );
                 })}

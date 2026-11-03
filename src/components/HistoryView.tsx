@@ -79,7 +79,7 @@ export function HistoryView({ onResume }: HistoryViewProps) {
                 onClick={() => onResume(item.animeId, item.episode)}
                 className={`group p-3 rounded-2xl bg-[#141724] hover:bg-[#1a1f33] border cursor-pointer transition-all flex flex-col justify-between ${
                   status === 'watched'
-                    ? 'border-emerald-500/20 hover:border-emerald-500/40'
+                    ? 'bg-sky-400/10 hover:bg-sky-400/15 border-sky-400/25 opacity-70 hover:opacity-100'
                     : 'border-white/[0.06] hover:border-pink-500/40'
                 }`}
               >
@@ -96,14 +96,14 @@ export function HistoryView({ onResume }: HistoryViewProps) {
                           Episode {item.episode}
                         </span>
                         {status === 'watched' ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[9px] border border-emerald-500/30">
-                            <Check className="w-2.5 h-2.5" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-400/20 text-sky-300 font-bold text-[9px] border border-sky-400/30">
+                            <Check className="w-2.5 h-2.5 text-sky-400" />
                             Watched
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-pink-500/20 text-pink-300 font-bold text-[9px] border border-pink-500/30">
                             <Eye className="w-2.5 h-2.5" />
-                            {percent > 0 ? `${percent}%` : 'Watching'}
+                            In Progress
                           </span>
                         )}
                       </div>
@@ -116,16 +116,6 @@ export function HistoryView({ onResume }: HistoryViewProps) {
                       </div>
                     </div>
                   </div>
-
-                  {/* Progress bar if in-progress */}
-                  {status === 'watching' && percent > 0 && (
-                    <div className="w-full bg-white/5 rounded-full h-1 mt-2.5 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-pink-500 to-rose-400 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {/* Status footer and Resume button */}

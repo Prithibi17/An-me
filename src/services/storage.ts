@@ -12,7 +12,7 @@ export interface UserPreferences {
 }
 
 const DEFAULT_PREFS: UserPreferences = {
-  preferredServer: 'megaplay-ani',
+  preferredServer: 'zokoanime-mal',
   preferredTrack: 'sub',
   autoplay: true,
   autoNext: true,
