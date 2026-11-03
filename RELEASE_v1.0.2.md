@@ -62,8 +62,9 @@ An:me is now packaged as a true native desktop application across all major oper
 
 | Platform | Package File | Format | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **Windows** | `An-me-Windows-Setup-x64.zip` | Setup Wizard (.exe) | 177 MB | `8B6D9E2C010FE7F08F0CA2F0A15409DBB34ADDAD900B0A39D27D46B65A63C657` |
-| **Windows** | `An-me-Windows-Portable-x64.zip` | Standalone (.exe) | 177 MB | `70ACCF2BB61D197E3A8D7FA8E1084E954963BC832FAA32D675EBF34B1877395A` |
+| **Windows (Recommended)** | `An-me-Setup.exe` | **Single Standalone Installer (.exe)** | **125 MB** | `EB0AEB671B10C9370B16781A0966FE8DF212477AFC51DBC50CEF87E198ED0AE9` |
+| **Windows** | `An-me-Windows-Setup-x64.zip` | Setup Wizard (.zip) | 177 MB | `8B6D9E2C010FE7F08F0CA2F0A15409DBB34ADDAD900B0A39D27D46B65A63C657` |
+| **Windows** | `An-me-Windows-Portable-x64.zip` | Standalone (.zip) | 177 MB | `70ACCF2BB61D197E3A8D7FA8E1084E954963BC832FAA32D675EBF34B1877395A` |
 | **Linux** | `An-me-Linux-x64.zip` | Standalone Archive | 143 MB | `91652D7ADA7CF939884B7154B702CC0B475896A63BD15547A6EDC489FB54452E` |
 | **macOS (Apple Silicon)** | `An-me-macOS-arm64.zip` | .app Bundle (M1-M4) | 140 MB | `CAFB5DB082142EAA8AB3BF964EFE3C49230C954C7205311208EC9799FB04A2E0` |
 | **macOS (Intel)** | `An-me-macOS-x64.zip` | .app Bundle (x64) | 144 MB | `FFA29A7B4EFAA95575D2FA72661A76AADF0B279FEE474CE6FD1EB4438E3E2911` |
@@ -75,10 +76,9 @@ An:me is now packaged as a true native desktop application across all major oper
 ## 🛠️ Installation Instructions
 
 ### Windows
-1. Download `An-me-Windows-Setup-x64.zip` and extract it.
-2. Run `An-me Setup.exe`.
-3. Follow the wizard steps to complete the installation and launch An:me from your Desktop or Start Menu.
-*(Alternatively, use the Portable zip for a zero-install experience).*
+- **Direct Installer (Recommended)**: Download **`An-me-Setup.exe`** and double-click to run the setup wizard directly. No extraction required!
+- **Setup Archive**: Alternatively, download `An-me-Windows-Setup-x64.zip`, extract it, and run `An-me Setup.exe`.
+- **Portable**: Download `An-me-Windows-Portable-x64.zip` for a zero-install portable version.
 
 ### macOS
 1. Download `An-me-macOS-arm64.zip` (for Apple Silicon) or `An-me-macOS-x64.zip` (for Intel Macs).
