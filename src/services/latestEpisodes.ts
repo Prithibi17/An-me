@@ -39,11 +39,45 @@ export interface LatestEpisodesResult {
   total: number;
   totalPages: number;
   currentPage: number;
+  hasMore: boolean;
 }
 
 export type EpisodeAudioFilter = 'all' | 'sub' | 'dub';
 
 const BASE_URL = 'https://anikotoapi.site';
+
+/**
+ * Checks whether an anime contains hentai, explicitly pornographic, or prohibited adult content.
+ */
+export function isProhibitedContent(raw: RawProviderAnime): boolean {
+  if (raw.rating) {
+    const r = raw.rating.trim().toLowerCase();
+    if (
+      r.includes('hentai') ||
+      r === 'rx' ||
+      r === 'r18+' ||
+      r === 'r18' ||
+      r.includes('pornographic') ||
+      r.includes('explicit')
+    ) {
+      return true;
+    }
+  }
+
+  const genres = raw.terms_by_type?.genre || [];
+  for (const g of genres) {
+    const lower = g.trim().toLowerCase();
+    if (lower === 'hentai' || lower === 'erotica' || lower === 'pornographic') {
+      return true;
+    }
+  }
+
+  if ((raw as any).isAdult === true) {
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * Parses provider updated_at string (e.g. "2026-11-02 18:16:27") into a verified UTC epoch timestamp in milliseconds.
@@ -116,8 +150,11 @@ export function normalizeProviderRecord(raw: RawProviderAnime, referenceNow = Da
   }
 
   const latestEp = Math.max(verifiedSubCount, isDubNum, 1);
-  const availabilityTimestamp = parseAvailabilityTimestamp(raw.updated_at);
-  const relativeTime = availabilityTimestamp > 0 ? formatRelativeTime(availabilityTimestamp, referenceNow) : '';
+  const rawTimestamp = parseAvailabilityTimestamp(raw.updated_at);
+
+  // For SUB releases: availability timestamp is valid if this release includes a SUB episode
+  const subAvailabilityTimestamp = isSubNum > 0 ? rawTimestamp : 0;
+  const relativeTime = rawTimestamp > 0 ? formatRelativeTime(rawTimestamp, referenceNow) : '';
 
   const genres = raw.terms_by_type?.genre || [];
   const studioName = raw.terms_by_type?.studios?.[0];
@@ -143,7 +180,7 @@ export function normalizeProviderRecord(raw: RawProviderAnime, referenceNow = Da
     subEpisodeCount: verifiedSubCount,
     dubEpisodeCount: isDubNum,
     latestEpisodeNumber: latestEp,
-    latestEpisodeTimestamp: availabilityTimestamp,
+    latestEpisodeTimestamp: subAvailabilityTimestamp || rawTimestamp,
     relativeUpdateTime: relativeTime,
     providerId: raw.id,
     duration: raw.duration ? parseInt(raw.duration, 10) || null : null,
@@ -175,7 +212,7 @@ export function deduplicateAnimeRecords(animeList: Anime[]): Anime[] {
     const bestSub = Math.max(existing.subEpisodeCount || 0, item.subEpisodeCount || 0);
     const bestDub = Math.max(existing.dubEpisodeCount || 0, item.dubEpisodeCount || 0);
     const bestTimestamp = Math.max(existing.latestEpisodeTimestamp || 0, item.latestEpisodeTimestamp || 0);
-    const bestLatestEp = Math.max(existing.latestEpisodeNumber || 0, item.latestEpisodeNumber || 0, bestSub, bestDub);
+    const bestLatestEp = Math.max(existing.latestEpisodeNumber || 0, item.latestEpisodeNumber || 0, bestSub);
 
     mergedMap.set(item.id, {
       ...existing,
@@ -184,7 +221,6 @@ export function deduplicateAnimeRecords(animeList: Anime[]): Anime[] {
       latestEpisodeNumber: bestLatestEp,
       latestEpisodeTimestamp: bestTimestamp,
       relativeUpdateTime: bestTimestamp > 0 ? formatRelativeTime(bestTimestamp) : existing.relativeUpdateTime,
-      // Retain poster and banner if existing was missing
       coverImage: {
         large: existing.coverImage.large || item.coverImage.large,
         medium: existing.coverImage.medium || item.coverImage.medium,
@@ -193,6 +229,25 @@ export function deduplicateAnimeRecords(animeList: Anime[]): Anime[] {
   }
 
   return Array.from(mergedMap.values());
+}
+
+/**
+ * Merges a newly fetched older batch of anime into an existing list of anime:
+ * - Appends new unique anime.
+ * - Deduplicates without shifting the order of already visible cards.
+ */
+export function mergeLatestEpisodesBatches(currentList: Anime[], newBatch: Anime[]): Anime[] {
+  const existingIds = new Set(currentList.map((a) => a.id));
+  const uniqueNewItems: Anime[] = [];
+
+  for (const item of newBatch) {
+    if (!existingIds.has(item.id)) {
+      existingIds.add(item.id);
+      uniqueNewItems.push(item);
+    }
+  }
+
+  return [...currentList, ...uniqueNewItems];
 }
 
 /**
@@ -205,11 +260,12 @@ export function deduplicateAnimeRecords(animeList: Anime[]): Anime[] {
  */
 export function sortLatestEpisodes(
   list: Anime[],
-  filter: EpisodeAudioFilter = 'all'
+  filter: EpisodeAudioFilter = 'sub'
 ): Anime[] {
   // Apply SUB / DUB availability filter
   let filtered = list;
   if (filter === 'sub') {
+    // Only verified playable SUB episodes
     filtered = list.filter((a) => (a.subEpisodeCount || 0) > 0);
   } else if (filter === 'dub') {
     filtered = list.filter((a) => (a.dubEpisodeCount || 0) > 0);
@@ -238,12 +294,12 @@ export function sortLatestEpisodes(
 }
 
 /**
- * Fetches latest episodes directly from provider with pagination and normalization.
+ * Fetches latest episodes directly from provider with pagination, adult content filtering, and normalization.
  */
 export async function fetchLatestEpisodesFeed(
   page = 1,
   perPage = 24,
-  filter: EpisodeAudioFilter = 'all'
+  filter: EpisodeAudioFilter = 'sub'
 ): Promise<LatestEpisodesResult> {
   const safePage = Math.max(1, page);
 
@@ -261,13 +317,23 @@ export async function fetchLatestEpisodesFeed(
     const total = Number(data?.pagination?.total) || rawRows.length;
     const totalPages = Number(data?.pagination?.total_pages) || Math.ceil(total / perPage) || 1;
 
-    // Normalize raw entries
-    const normalized = rawRows.map((r) => normalizeProviderRecord(r));
+    // 1. Filter out prohibited adult/hentai content
+    const safeRows = rawRows.filter((r) => !isProhibitedContent(r));
 
-    // Deduplicate any mirror records
+    // 2. Filter for SUB if filter === 'sub' (DUB-only updates excluded)
+    const filteredRows = filter === 'sub'
+      ? safeRows.filter((r) => Number(r.is_sub) > 0)
+      : filter === 'dub'
+      ? safeRows.filter((r) => Number(r.is_dub) > 0)
+      : safeRows;
+
+    // 3. Normalize raw entries
+    const normalized = filteredRows.map((r) => normalizeProviderRecord(r));
+
+    // 4. Deduplicate any mirror records
     const deduplicated = deduplicateAnimeRecords(normalized);
 
-    // Apply strict availability timestamp sorting & audio filtering
+    // 5. Apply strict availability timestamp sorting
     const sorted = sortLatestEpisodes(deduplicated, filter);
 
     return {
@@ -275,6 +341,7 @@ export async function fetchLatestEpisodesFeed(
       total,
       totalPages,
       currentPage: Math.min(safePage, totalPages),
+      hasMore: safePage < totalPages && rawRows.length > 0,
     };
   } catch (err) {
     console.error('[LatestEpisodes] Fetch error:', err);
@@ -283,6 +350,7 @@ export async function fetchLatestEpisodesFeed(
       total: 0,
       totalPages: 1,
       currentPage: safePage,
+      hasMore: false,
     };
   }
 }

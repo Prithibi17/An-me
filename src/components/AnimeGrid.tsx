@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LucideIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Anime } from '../types/anime';
 import { AnimeCard } from './AnimeCard';
@@ -12,13 +12,16 @@ interface AnimeGridProps {
   onSelectAnime: (anime: Anime) => void;
   onPlayAnime?: (anime: Anime) => void;
   showRank?: boolean;
+  layout?: 'grid' | 'carousel';
   page?: number;
   totalPages?: number;
   onPrevPage?: () => void;
   onNextPage?: () => void;
   onPageChange?: (newPage: number) => void;
+  onLoadMore?: () => void;
   hasPrevPage?: boolean;
   hasNextPage?: boolean;
+  hasMore?: boolean;
   isLoadingPage?: boolean;
   onViewAll?: () => void;
   audioFilter?: EpisodeFilterType;
@@ -32,25 +35,104 @@ export function AnimeGrid({
   onSelectAnime,
   onPlayAnime,
   showRank = false,
+  layout = 'grid',
   page,
   totalPages,
   onPrevPage,
   onNextPage,
   onPageChange,
+  onLoadMore,
   hasPrevPage = false,
   hasNextPage = false,
+  hasMore = false,
   isLoadingPage = false,
   onViewAll,
   audioFilter,
   onFilterChange,
 }: AnimeGridProps) {
+  // Grid mode state
   const [pageInput, setPageInput] = useState<string>(String(page || 1));
+
+  // Carousel mode state
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [currentGroup, setCurrentGroup] = useState<number>(1);
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   useEffect(() => {
     if (typeof page === 'number') {
       setPageInput(String(page));
     }
   }, [page]);
+
+  // Update carousel scroll status and calculate current group
+  const updateCarouselState = () => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, clientWidth, scrollWidth } = carouselRef.current;
+    const group = Math.round(scrollLeft / clientWidth) + 1;
+    setCurrentGroup(Math.max(1, group));
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10 || hasMore);
+
+    // If approaching the end and more items can be loaded, request next batch
+    if (scrollLeft + clientWidth >= scrollWidth - clientWidth && hasMore && !isLoadingPage && onLoadMore) {
+      onLoadMore();
+    }
+  };
+
+  const handleCarouselScroll = () => {
+    updateCarouselState();
+  };
+
+  const handleNextCarouselGroup = () => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, clientWidth, scrollWidth } = carouselRef.current;
+    const nextLeft = scrollLeft + clientWidth;
+    carouselRef.current.scrollBy({ left: clientWidth, behavior: 'smooth' });
+
+    if (nextLeft >= scrollWidth - clientWidth * 1.5 && hasMore && !isLoadingPage && onLoadMore) {
+      onLoadMore();
+    }
+  };
+
+  const handlePrevCarouselGroup = () => {
+    if (!carouselRef.current) return;
+    const { clientWidth } = carouselRef.current;
+    carouselRef.current.scrollBy({ left: -clientWidth, behavior: 'smooth' });
+  };
+
+  // Keyboard navigation for Carousel
+  const handleCarouselKeyDown = (e: React.KeyboardEvent) => {
+    const activeTag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase();
+    if (activeTag === 'input' || activeTag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable) {
+      return;
+    }
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        const next = Math.min(animeList.length - 1, prev + 1);
+        cardRefs.current[next]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        cardRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        const next = Math.max(0, prev - 1);
+        cardRefs.current[next]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        cardRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'Enter') {
+      if (focusedIndex >= 0 && animeList[focusedIndex]) {
+        e.preventDefault();
+        onSelectAnime(animeList[focusedIndex]);
+      }
+    }
+  };
 
   const handleCommitPage = () => {
     const clean = pageInput.trim();
@@ -83,7 +165,7 @@ export function AnimeGrid({
             <h2 className="text-lg font-black text-white tracking-tight">{title}</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="aspect-[2/3] rounded-lg bg-[#11151b] animate-pulse border border-white/5" />
             ))}
           </div>
@@ -93,6 +175,125 @@ export function AnimeGrid({
     return null;
   }
 
+  // -------------------------
+  // 1. CAROUSEL MODE (Homepage)
+  // -------------------------
+  if (layout === 'carousel') {
+    return (
+      <section className="mb-8 select-none">
+        {/* Header: Title, < > arrows, numerical indicator, and View All */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {Icon && (
+                <div className="w-7 h-7 rounded-lg bg-pink-500/15 border border-pink-500/25 flex items-center justify-center text-pink-400">
+                  <Icon className="w-4 h-4" />
+                </div>
+              )}
+              <h2 className="text-lg font-black text-white tracking-tight">{title}</h2>
+            </div>
+
+            {/* Carousel navigation controls: Previous, Next, and Group indicator */}
+            <div className="flex items-center gap-1.5 ml-1">
+              <button
+                type="button"
+                onClick={handlePrevCarouselGroup}
+                disabled={!canScrollLeft}
+                aria-label="Previous carousel group"
+                title="Previous group"
+                className={`w-7 h-7 rounded-lg bg-[#141824] border border-white/10 flex items-center justify-center transition-all ${
+                  !canScrollLeft
+                    ? 'opacity-30 cursor-not-allowed text-white/30'
+                    : 'text-white hover:bg-pink-600 hover:border-pink-500 hover:shadow-md hover:shadow-pink-600/30 cursor-pointer active:scale-95'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextCarouselGroup}
+                disabled={!canScrollRight && !hasMore}
+                aria-label="Next carousel group"
+                title="Next group"
+                className={`w-7 h-7 rounded-lg bg-[#141824] border border-white/10 flex items-center justify-center transition-all ${
+                  !canScrollRight && !hasMore
+                    ? 'opacity-30 cursor-not-allowed text-white/30'
+                    : 'text-white hover:bg-pink-600 hover:border-pink-500 hover:shadow-md hover:shadow-pink-600/30 cursor-pointer active:scale-95'
+                }`}
+              >
+                {isLoadingPage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-pink-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Minimalistic Numerical Indicator */}
+              <div
+                className="min-w-[28px] h-7 px-2 rounded-lg bg-[#141824] border border-white/10 flex items-center justify-center text-pink-400 font-bold text-xs select-none shadow-sm ml-0.5"
+                title={`Group ${currentGroup}`}
+                aria-live="polite"
+              >
+                {currentGroup}
+              </div>
+            </div>
+          </div>
+
+          {/* View All Button on Right */}
+          {onViewAll && (
+            <button
+              type="button"
+              onClick={onViewAll}
+              aria-label="View all latest episodes"
+              className="flex items-center gap-1 text-xs font-bold text-pink-400 hover:text-pink-300 transition-colors hover:underline cursor-pointer"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Carousel Horizontal Scrollable Row */}
+        <div
+          ref={carouselRef}
+          onScroll={handleCarouselScroll}
+          onKeyDown={handleCarouselKeyDown}
+          tabIndex={0}
+          role="region"
+          aria-label={`${title} Carousel`}
+          className="flex items-stretch gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar scroll-smooth pb-2 focus:outline-none focus-visible:ring-1 focus-visible:ring-pink-500/50 rounded-lg"
+        >
+          {animeList.map((anime, index) => (
+            <div
+              key={`${anime.id}-${index}`}
+              ref={(el) => { cardRefs.current[index] = el; }}
+              tabIndex={0}
+              role="button"
+              aria-label={anime.title.english || anime.title.romaji || 'Anime'}
+              onFocus={() => setFocusedIndex(index)}
+              className="w-[calc((100%-12px)/2)] sm:w-[calc((100%-32px)/3)] md:w-[calc((100%-48px)/4)] lg:w-[calc((100%-64px)/5)] xl:w-[calc((100%-80px)/6)] shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 rounded-lg transition-transform"
+            >
+              <AnimeCard
+                anime={anime}
+                onSelect={onSelectAnime}
+                onPlay={onPlayAnime}
+                rank={showRank ? index + 1 : undefined}
+              />
+            </div>
+          ))}
+          {isLoadingPage && (
+            <div className="w-[calc((100%-12px)/2)] sm:w-[calc((100%-32px)/3)] md:w-[calc((100%-48px)/4)] lg:w-[calc((100%-64px)/5)] xl:w-[calc((100%-80px)/6)] shrink-0 aspect-[2/3] rounded-lg bg-[#11151b] animate-pulse border border-white/5 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-pink-500/60" />
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // -------------------------
+  // 2. GRID MODE (Full View / Standard Grid)
+  // -------------------------
   return (
     <section className="mb-8">
       {/* Header */}
@@ -119,7 +320,7 @@ export function AnimeGrid({
             </button>
           )}
 
-          {/* <> Navigation Buttons & Page Number Input */}
+          {/* Navigation Buttons & Page Number Input */}
           {(onPrevPage || onNextPage) && (
             <div className="flex items-center gap-1.5 ml-1">
               <button
@@ -212,7 +413,7 @@ export function AnimeGrid({
         )}
       </div>
 
-      {/* Grid */}
+      {/* Grid Layout */}
       <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 transition-opacity duration-200 ${isLoadingPage ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         {animeList.map((anime, index) => (
           <AnimeCard

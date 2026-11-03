@@ -6,6 +6,8 @@ import {
   normalizeProviderRecord,
   deduplicateAnimeRecords,
   sortLatestEpisodes,
+  isProhibitedContent,
+  mergeLatestEpisodesBatches,
 } from '../src/services/latestEpisodes.ts';
 
 describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
@@ -33,7 +35,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       subEpisodeCount: 1,
     };
 
-    const sorted = sortLatestEpisodes([olderAvailability, newerAvailability]);
+    const sorted = sortLatestEpisodes([olderAvailability, newerAvailability], 'sub');
     assert.equal(sorted[0].id, 102, 'Newer availability timestamp must sort to index 0');
     assert.equal(sorted[1].id, 101, 'Older availability timestamp must sort to index 1');
   });
@@ -59,7 +61,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       subEpisodeCount: 4,
     };
 
-    const sorted = sortLatestEpisodes([modernAnime, classicAnime]);
+    const sorted = sortLatestEpisodes([modernAnime, classicAnime], 'sub');
     assert.equal(sorted[0].id, 50, 'Classic 1999 anime with recent episode update must jump to #1');
   });
 
@@ -143,7 +145,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
     assert.equal(subResults.length, 2, 'SUB filter should only include items with subEpisodeCount > 0');
     assert.ok(subResults.some((a) => a.id === 301));
     assert.ok(subResults.some((a) => a.id === 303));
-    assert.ok(!subResults.some((a) => a.id === 302));
+    assert.ok(!subResults.some((a) => a.id === 302), 'DUB-only update must be excluded from SUB releases');
 
     assert.equal(dubResults.length, 2, 'DUB filter should only include items with dubEpisodeCount > 0');
     assert.ok(dubResults.some((a) => a.id === 302));
@@ -158,6 +160,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       title: { english: 'Show with Time 1' },
       coverImage: {},
       genres: [],
+      subEpisodeCount: 1,
       latestEpisodeTimestamp: 1700000000000,
     };
     const validTime2 = {
@@ -165,6 +168,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       title: { english: 'Show with Time 2' },
       coverImage: {},
       genres: [],
+      subEpisodeCount: 1,
       latestEpisodeTimestamp: 1700050000000,
     };
     const noTimeA = {
@@ -172,6 +176,7 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       title: { english: 'No Time A' },
       coverImage: {},
       genres: [],
+      subEpisodeCount: 1,
       latestEpisodeTimestamp: 0,
     };
     const noTimeB = {
@@ -179,10 +184,11 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       title: { english: 'No Time B' },
       coverImage: {},
       genres: [],
+      subEpisodeCount: 1,
       latestEpisodeTimestamp: 0,
     };
 
-    const sorted = sortLatestEpisodes([noTimeA, validTime1, noTimeB, validTime2]);
+    const sorted = sortLatestEpisodes([noTimeA, validTime1, noTimeB, validTime2], 'sub');
     assert.equal(sorted[0].id, 402, 'Newest verified time at index 0');
     assert.equal(sorted[1].id, 401, 'Older verified time at index 1');
     assert.equal(sorted[2].id, 403, 'Fallback group preserves original provider order');
@@ -196,10 +202,11 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
       title: { english: `Anime ${i + 1}` },
       coverImage: {},
       genres: [],
+      subEpisodeCount: 1,
       latestEpisodeTimestamp: 1700000000000 - i * 1000,
     }));
 
-    const sorted = sortLatestEpisodes(items);
+    const sorted = sortLatestEpisodes(items, 'sub');
     const perPage = 24;
     const page1 = sorted.slice(0, perPage);
     const page2 = sorted.slice(perPage, perPage * 2);
@@ -218,31 +225,28 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
     assert.equal(ids1.size + ids2.size, 48, 'Combined pages must cover entire 48 records');
   });
 
-  // 7. New releases arriving during pagination
-  it('7. Handles new releases arriving dynamically via deduplication without card collision', () => {
-    const page1 = [
-      { id: 1, title: { english: 'Ep 1' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 100 },
-      { id: 2, title: { english: 'Ep 2' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 90 },
+  // 7. Progressive carousel batch merging
+  it('7. Progressive carousel batch merging appends older records without duplicate keys', () => {
+    const batch1 = [
+      { id: 1, title: { english: 'Show 1' }, coverImage: {}, genres: [], subEpisodeCount: 1 },
+      { id: 2, title: { english: 'Show 2' }, coverImage: {}, genres: [], subEpisodeCount: 1 },
     ];
-    // Dynamic update arrives containing an updated record for item 2 and brand new item 3
-    const newBatch = [
-      { id: 3, title: { english: 'Ep 3' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 120 },
-      { id: 2, title: { english: 'Ep 2 updated' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 110 },
+    const batch2 = [
+      { id: 2, title: { english: 'Show 2 duplicate' }, coverImage: {}, genres: [], subEpisodeCount: 1 },
+      { id: 3, title: { english: 'Show 3 new' }, coverImage: {}, genres: [], subEpisodeCount: 1 },
     ];
 
-    const deduplicated = deduplicateAnimeRecords([...page1, ...newBatch]);
-    const sorted = sortLatestEpisodes(deduplicated);
-
-    assert.equal(sorted.length, 3, 'Merged list contains unique 3 anime');
-    assert.equal(sorted[0].id, 3, 'New release is #1');
-    assert.equal(sorted[1].id, 2, 'Updated release is #2');
-    assert.equal(sorted[2].id, 1, 'Older release is #3');
+    const merged = mergeLatestEpisodesBatches(batch1, batch2);
+    assert.equal(merged.length, 3, 'Should append only unique items');
+    assert.equal(merged[0].id, 1);
+    assert.equal(merged[1].id, 2);
+    assert.equal(merged[2].id, 3);
   });
 
   // 8. Empty provider results
   it('8. Empty provider results are handled gracefully without error', () => {
     const emptyNormalized = deduplicateAnimeRecords([]);
-    const sorted = sortLatestEpisodes(emptyNormalized);
+    const sorted = sortLatestEpisodes(emptyNormalized, 'sub');
     assert.deepEqual(sorted, [], 'Empty input produces empty array cleanly');
   });
 
@@ -278,12 +282,6 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
 
   // 12. Differences between Latest Episodes, Recently Added, and Airing Schedule
   it('12. Distinguishes Latest Episodes availability from Airing Schedule countdown', () => {
-    // Airing schedule has future timestamp
-    const futureBroadcast = {
-      airingAt: Math.floor(Date.now() / 1000) + 3600 * 24, // 1 day in the future
-      episode: 5,
-    };
-    // Latest episode must NOT display future episode as playable
     const rawAiringAnime = {
       id: 888,
       title: 'Airing Anime',
@@ -292,5 +290,18 @@ describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
     };
     const normalized = normalizeProviderRecord(rawAiringAnime);
     assert.equal(normalized.subEpisodeCount, 4, 'Playable sub episode cannot equal or exceed next_air_ep');
+  });
+
+  // 13. Adult and Hentai prohibited content filtering
+  it('13. Prohibited adult and hentai content is cleanly filtered out', () => {
+    const hentai1 = { id: 1, title: 'Adult Show', rating: 'Rx - Hentai' };
+    const hentai2 = { id: 2, title: 'Explicit Show', rating: 'R18+' };
+    const erotica = { id: 3, title: 'Erotica Show', terms_by_type: { genre: ['Action', 'Erotica'] } };
+    const cleanShow = { id: 4, title: 'Clean Show', rating: 'PG-13', terms_by_type: { genre: ['Action', 'Fantasy'] } };
+
+    assert.equal(isProhibitedContent(hentai1), true);
+    assert.equal(isProhibitedContent(hentai2), true);
+    assert.equal(isProhibitedContent(erotica), true);
+    assert.equal(isProhibitedContent(cleanShow), false);
   });
 });
