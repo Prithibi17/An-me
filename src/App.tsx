@@ -21,6 +21,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { NotificationDrawer } from './components/notifications/NotificationDrawer';
 import { SplashScreen } from './components/SplashScreen';
+import { ContinueWatchingSection } from './components/home/ContinueWatchingSection';
 import { Anime } from './types/anime';
 import { User, AppNotification } from './types/user';
 import {
@@ -409,6 +410,11 @@ export function App() {
             <div className="my-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column: Latest Episodes, Seasonal & Schedule */}
               <div className="lg:col-span-8 flex flex-col gap-6">
+                <ContinueWatchingSection
+                  onPlayEpisode={(animeId, episode) => handleResumeFromHistory(animeId, episode)}
+                  onOpenDetails={handleOpenDetails}
+                />
+
                 <AnimeGrid
                   title="Latest Episodes"
                   icon={Clock}

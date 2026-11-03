@@ -8,7 +8,7 @@
     "build": "vite build",
     "desktop": "npm run build && electron .",
     "start": "electron .",
-    "test": "node --experimental-strip-types --test tests/latestEpisodes.test.mjs tests/intelligentSearch.test.mjs"
+    "test": "node --experimental-strip-types --test tests/latestEpisodes.test.mjs tests/intelligentSearch.test.mjs tests/watchProgress.test.mjs"
   },
   "keywords": [
     "anime",

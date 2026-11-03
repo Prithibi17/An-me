@@ -2,6 +2,7 @@
 node_modules/
 .pnp
 .pnp.js
+scratch/
 
 # Build artifacts & packaged binaries (releases hosted separately)
 dist/

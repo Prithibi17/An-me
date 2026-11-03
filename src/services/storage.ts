@@ -1,4 +1,4 @@
-import { Anime, WatchHistoryItem, WatchlistItem, WatchlistStatus } from '../types/anime';
+import type { Anime, WatchHistoryItem, WatchlistItem, WatchlistStatus } from '../types/anime.ts';
 
 const WATCHLIST_KEY = 'anme_desktop_watchlist';
 const HISTORY_KEY = 'anme_desktop_history';

@@ -23,6 +23,15 @@ import { getSingleAnimeAvailability } from '../../services/availability';
 import { saveToWatchlist, getWatchlist, getWatchHistory } from '../../services/storage';
 import { getCurrentUser } from '../../services/auth';
 import { addAnimeToCloud } from '../../services/librarySync';
+import {
+  getResumeInfo,
+  getEpisodeProgress,
+  getEpisodeWatchStatus,
+  markEpisodeWatched,
+  markEpisodeUnwatched,
+  WATCH_PROGRESS_EVENT,
+  EpisodeWatchStatus,
+} from '../../services/watchProgress';
 
 interface DetailsViewProps {
   anime: Anime;
@@ -96,9 +105,16 @@ export function DetailsView({
   };
 
   // Find saved episode if watched
-  const history = getWatchHistory();
-  const historyItem = history.find((h) => h.animeId === details.id);
-  const resumeEpisode = historyItem?.episode || 1;
+  const [, setWatchTick] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => setWatchTick((t) => t + 1);
+    window.addEventListener(WATCH_PROGRESS_EVENT, handleSync);
+    return () => window.removeEventListener(WATCH_PROGRESS_EVENT, handleSync);
+  }, []);
+
+  const resumeInfo = getResumeInfo(details.id);
+  const resumeEpisode = resumeInfo ? resumeInfo.episode : 1;
 
   // Filter episodes by search
   const filteredEpisodes = episodesList.filter((ep) => {
@@ -193,10 +209,21 @@ export function DetailsView({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => onPlayEpisode(details, resumeEpisode)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 hover:from-red-500 hover:to-blue-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-pink-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 hover:from-red-500 hover:to-blue-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-pink-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-white" />
-                {historyItem ? `Resume Ep ${resumeEpisode}` : 'Watch Now'}
+                {resumeInfo ? (
+                  <span className="flex items-center gap-1.5">
+                    <span>Resume Ep {resumeEpisode}</span>
+                    {resumeInfo.progressPercent > 0 && (
+                      <span className="px-1.5 py-0.2 rounded bg-black/40 text-[10px] font-bold">
+                        {resumeInfo.progressPercent}%
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span>Watch Ep 1</span>
+                )}
               </button>
 
               <button
@@ -390,26 +417,55 @@ export function DetailsView({
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
                   {(searchEp ? filteredEpisodes : filteredEpisodes.slice(selectedRange * episodesPerPage, (selectedRange + 1) * episodesPerPage)).map((ep) => {
-                    const isCurrent = historyItem?.episode === ep.number;
+                    const epProg = getEpisodeProgress(details.id, ep.number);
+                    const status: EpisodeWatchStatus = epProg?.status || 'unwatched';
+                    const isResumeTarget = resumeInfo?.episode === ep.number;
+
+                    let buttonStyle = 'bg-[#11151B] border-white/5 hover:border-pink-500/50 hover:bg-[#161b24] text-slate-300 hover:text-white';
+                    if (status === 'watched') {
+                      buttonStyle = 'bg-[#0f1f1d] border-emerald-500/40 text-emerald-300 hover:bg-[#142926] shadow-sm';
+                    } else if (status === 'watching') {
+                      buttonStyle = 'bg-[#201529] border-pink-500/50 text-pink-300 hover:bg-[#2b1c37] shadow-sm';
+                    }
+
                     return (
                       <button
                         key={ep.number}
                         onClick={() => onPlayEpisode(details, ep.number)}
-                        className={`group p-3 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
-                          isCurrent
-                            ? 'bg-gradient-to-br from-red-600/40 via-pink-600/40 to-blue-600/40 border-pink-500 text-white'
-                            : 'bg-[#11151B] border-white/5 hover:border-pink-500/50 hover:bg-[#161b24] text-slate-300 hover:text-white'
-                        }`}
-                        title={ep.title}
+                        className={`group relative p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${buttonStyle}`}
+                        title={
+                          status === 'watched'
+                            ? `Episode ${ep.number}: Completely Watched`
+                            : status === 'watching'
+                            ? `Episode ${ep.number}: Currently Watching (${epProg?.progressPercent || 0}%)`
+                            : `Episode ${ep.number}: Yet to Watch`
+                        }
                       >
-                        <span className="text-xs font-black group-hover:text-pink-400">
-                          EP {ep.number}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {status === 'watched' ? (
+                            <Check className="w-3 h-3 text-emerald-400" />
+                          ) : status === 'watching' ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+                          ) : null}
+                          <span className="text-xs font-black">
+                            EP {ep.number}
+                          </span>
+                        </div>
                         {ep.title !== `Episode ${ep.number}` && (
-                          <span className="text-[10px] text-slate-400 truncate w-full text-center mt-1">
+                          <span className="text-[10px] text-slate-400 truncate w-full text-center mt-0.5">
                             {ep.title}
                           </span>
                         )}
+                        {/* Status label under EP */}
+                        <span className={`text-[9px] font-extrabold mt-1 px-1.5 py-0.2 rounded ${
+                          status === 'watched'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : status === 'watching'
+                            ? 'bg-pink-500/20 text-pink-300'
+                            : 'bg-white/5 text-slate-500'
+                        }`}>
+                          {status === 'watched' ? 'Watched' : status === 'watching' ? `${epProg?.progressPercent}%` : 'Unwatched'}
+                        </span>
                       </button>
                     );
                   })}
@@ -417,14 +473,18 @@ export function DetailsView({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {(searchEp ? filteredEpisodes : filteredEpisodes.slice(selectedRange * episodesPerPage, (selectedRange + 1) * episodesPerPage)).map((ep) => {
-                    const isCurrent = historyItem?.episode === ep.number;
+                    const epProg = getEpisodeProgress(details.id, ep.number);
+                    const status: EpisodeWatchStatus = epProg?.status || 'unwatched';
+
                     return (
                       <div
                         key={ep.number}
                         onClick={() => onPlayEpisode(details, ep.number)}
                         className={`group flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
-                          isCurrent
-                            ? 'bg-gradient-to-r from-red-950/40 via-pink-950/40 to-blue-950/40 border-pink-500/80 text-white'
+                          status === 'watched'
+                            ? 'bg-[#0f1f1d]/70 border-emerald-500/30 text-white'
+                            : status === 'watching'
+                            ? 'bg-[#201529]/70 border-pink-500/40 text-white'
                             : 'bg-[#11151B] border-white/5 hover:border-blue-500/50 hover:bg-[#161b24] text-slate-300 hover:text-white'
                         }`}
                       >
@@ -437,8 +497,14 @@ export function DetailsView({
                             </div>
                           </div>
                         ) : (
-                          <div className="w-12 h-10 rounded-lg bg-[#1a1f2b] border border-white/10 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-black text-pink-400">{ep.number}</span>
+                          <div className={`w-12 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
+                            status === 'watched'
+                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400'
+                              : status === 'watching'
+                              ? 'bg-pink-950/40 border-pink-500/40 text-pink-400'
+                              : 'bg-[#1a1f2b] border-white/10 text-slate-300'
+                          }`}>
+                            <span className="text-xs font-black">{ep.number}</span>
                           </div>
                         )}
 
@@ -447,11 +513,42 @@ export function DetailsView({
                           <p className="text-xs font-bold text-white group-hover:text-pink-300 truncate transition-colors">
                             {ep.title}
                           </p>
-                          <span className="text-[10px] text-slate-400 font-medium">Episode {ep.number}</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-slate-400 font-medium">Episode {ep.number}</span>
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
+                              status === 'watched'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : status === 'watching'
+                                ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
+                                : 'bg-white/5 text-slate-500'
+                            }`}>
+                              {status === 'watched' ? 'Watched' : status === 'watching' ? `Watching (${epProg?.progressPercent}%)` : 'Yet to Watch'}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="shrink-0 pr-2">
-                          <Play className={`w-4 h-4 ${isCurrent ? 'text-pink-400 fill-pink-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                        {/* Quick Mark Watched toggle icon */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (status === 'watched') {
+                              markEpisodeUnwatched(details.id, ep.number);
+                            } else {
+                              markEpisodeWatched(details, ep.number);
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            status === 'watched'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
+                          }`}
+                          title={status === 'watched' ? "Mark as Yet to Watch" : "Mark as Watched"}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="shrink-0 pr-1">
+                          <Play className={`w-4 h-4 ${status === 'watching' ? 'text-pink-400 fill-pink-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
                         </div>
                       </div>
                     );

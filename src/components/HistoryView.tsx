@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { History, Play, Trash2, Clock } from 'lucide-react';
+import { History, Play, Trash2, Clock, Check, Eye } from 'lucide-react';
 import { WatchHistoryItem } from '../types/anime';
 import { getWatchHistory, clearWatchHistory } from '../services/storage';
+import { getEpisodeProgress, WATCH_PROGRESS_EVENT, EpisodeWatchStatus } from '../services/watchProgress';
 
 interface HistoryViewProps {
   onResume: (animeId: number, episode: number) => void;
@@ -16,6 +17,8 @@ export function HistoryView({ onResume }: HistoryViewProps) {
 
   useEffect(() => {
     loadData();
+    window.addEventListener(WATCH_PROGRESS_EVENT, loadData);
+    return () => window.removeEventListener(WATCH_PROGRESS_EVENT, loadData);
   }, []);
 
   const handleClear = () => {
@@ -42,7 +45,7 @@ export function HistoryView({ onResume }: HistoryViewProps) {
         {history.length > 0 && (
           <button
             onClick={handleClear}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear History
@@ -66,38 +69,71 @@ export function HistoryView({ onResume }: HistoryViewProps) {
               day: 'numeric',
             });
 
+            const epProgress = getEpisodeProgress(item.animeId, item.episode);
+            const status: EpisodeWatchStatus = epProgress?.status || (item.progressPercent && item.progressPercent >= 90 ? 'watched' : 'watching');
+            const percent = epProgress?.progressPercent ?? item.progressPercent ?? 0;
+
             return (
               <div
                 key={`${item.animeId}-${item.episode}`}
                 onClick={() => onResume(item.animeId, item.episode)}
-                className="group p-3 rounded-2xl bg-[#141724] hover:bg-[#1a1f33] border border-white/[0.06] hover:border-purple-500/30 cursor-pointer transition-all flex flex-col justify-between"
+                className={`group p-3 rounded-2xl bg-[#141724] hover:bg-[#1a1f33] border cursor-pointer transition-all flex flex-col justify-between ${
+                  status === 'watched'
+                    ? 'border-emerald-500/20 hover:border-emerald-500/40'
+                    : 'border-white/[0.06] hover:border-pink-500/40'
+                }`}
               >
-                <div className="flex gap-3">
-                  <img
-                    src={item.coverImage}
-                    alt={item.title}
-                    className="w-16 h-22 object-cover rounded-xl flex-shrink-0 group-hover:scale-105 transition-transform"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-purple-600/20 text-purple-300 font-bold text-[10px] border border-purple-500/30 mb-1">
-                      Episode {item.episode}
-                    </span>
-                    <h3 className="text-xs font-bold text-slate-100 truncate group-hover:text-purple-400 transition-colors">
-                      {item.title}
-                    </h3>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-2">
-                      <Clock className="w-3 h-3" />
-                      <span>{timeAgo}</span>
+                <div>
+                  <div className="flex gap-3">
+                    <img
+                      src={item.coverImage}
+                      alt={item.title}
+                      className="w-16 h-22 object-cover rounded-xl flex-shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-purple-600/20 text-purple-300 font-bold text-[10px] border border-purple-500/30">
+                          Episode {item.episode}
+                        </span>
+                        {status === 'watched' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[9px] border border-emerald-500/30">
+                            <Check className="w-2.5 h-2.5" />
+                            Watched
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-pink-500/20 text-pink-300 font-bold text-[9px] border border-pink-500/30">
+                            <Eye className="w-2.5 h-2.5" />
+                            {percent > 0 ? `${percent}%` : 'Watching'}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-xs font-bold text-slate-100 truncate group-hover:text-pink-400 transition-colors">
+                        {item.title}
+                      </h3>
+                      <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-2">
+                        <Clock className="w-3 h-3" />
+                        <span>{timeAgo}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Progress bar if in-progress */}
+                  {status === 'watching' && percent > 0 && (
+                    <div className="w-full bg-white/5 rounded-full h-1 mt-2.5 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-pink-500 to-rose-400 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Progress bar and Resume button */}
+                {/* Status footer and Resume button */}
                 <div className="mt-3 pt-3 border-t border-white/[0.04] flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-slate-400">
                     {item.totalEpisodes ? `${item.episode} / ${item.totalEpisodes} eps` : `Episode ${item.episode}`}
                   </span>
-                  <button className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-600 group-hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-colors">
+                  <button className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-pink-600 group-hover:bg-pink-500 text-white font-bold text-xs shadow-md transition-colors cursor-pointer">
                     <Play className="w-3 h-3 fill-white" />
                     Resume
                   </button>
