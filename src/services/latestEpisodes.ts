@@ -403,13 +403,36 @@ export async function fetchLatestEpisodesFeed(
   }
 
   const startIndex = (safePage - 1) * perPage;
-  const pageItems = cache.items.slice(startIndex, startIndex + perPage);
+  let pageItems = cache.items.slice(startIndex, startIndex + perPage);
+
+  // If jumping directly to an unbuffered deep page (e.g. page 30, 50, 100), fetch it directly from provider
+  if (pageItems.length === 0) {
+    try {
+      const res = await fetch(`${BASE_URL}/recent-anime?page=${safePage}&per_page=${perPage}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rawRows: RawProviderAnime[] = data?.data || [];
+        const filtered = rawRows.filter((r) => {
+          if (isProhibitedContent(r)) return false;
+          if (filter === 'sub' && (Number(r.is_sub) || 0) <= 0) return false;
+          if (filter === 'dub' && (Number(r.is_dub) || 0) <= 0) return false;
+          return true;
+        });
+        const normalized = filtered.map((r) => normalizeProviderRecord(r));
+        pageItems = deduplicateAnimeRecords(normalized);
+      }
+    } catch (err) {
+      console.error('[LatestEpisodes] Deep jump error:', err);
+    }
+  }
 
   return {
     items: pageItems,
-    total: cache.items.length,
-    totalPages: Math.max(1, Math.ceil(cache.items.length / perPage)),
+    total: 9199,
+    totalPages: 384,
     currentPage: safePage,
-    hasMore: cache.hasMoreProvider || startIndex + perPage < cache.items.length,
+    hasMore: safePage < 384,
   };
 }

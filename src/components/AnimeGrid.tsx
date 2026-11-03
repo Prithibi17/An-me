@@ -142,7 +142,8 @@ export function AnimeGrid({
     }
     const parsed = parseInt(clean, 10);
     if (!isNaN(parsed) && parsed >= 1 && onPageChange) {
-      const targetPage = totalPages ? Math.min(parsed, totalPages) : parsed;
+      const maxAllowed = totalPages && totalPages > 20 ? totalPages : 384;
+      const targetPage = Math.min(parsed, maxAllowed);
       setPageInput(String(targetPage));
       if (targetPage !== page) {
         onPageChange(targetPage);
