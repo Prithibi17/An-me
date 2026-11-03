@@ -189,7 +189,7 @@ export function Navbar({
           <button
             onClick={() => onSelectTab('discover')}
             className={`rounded-full px-4 py-1.5 transition-all ${
-              currentTab === 'discover'
+              currentTab === 'discover' || currentTab === 'search'
                 ? 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white shadow-md shadow-pink-600/30 font-black'
                 : 'text-white/60 hover:text-white'
             }`}
