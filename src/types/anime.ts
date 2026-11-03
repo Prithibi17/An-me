@@ -56,6 +56,8 @@ export interface Anime {
   providerId?: number;
   duration?: number | null;
   genres: string[];
+  synonyms?: string[];
+  isAdult?: boolean;
   averageScore?: number | null;
   popularity?: number;
   season?: string;

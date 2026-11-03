@@ -323,6 +323,7 @@ export function App() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onSelectAnime={handleOpenDetails}
+          onOpenSearch={handleOpenSearch}
           watchlistCount={watchlistCount}
           user={user}
           unreadNotifCount={notifications.filter((n) => !n.isRead).length}

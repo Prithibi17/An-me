@@ -20,12 +20,14 @@ import { Anime } from '../types/anime';
 import { User } from '../types/user';
 import { searchAnime } from '../services/anilist';
 import { getAvatarSrc } from '../services/avatarRegistry';
+import { executeIntelligentSearch } from '../services/searchEngine';
 
 interface NavbarProps {
   onOpenSidebar: () => void;
   currentTab: string;
   onSelectTab: (tab: string) => void;
   onSelectAnime: (anime: Anime) => void;
+  onOpenSearch?: (params: { query?: string; genre?: string }) => void;
   watchlistCount: number;
   user?: User | null;
   unreadNotifCount?: number;
@@ -40,6 +42,7 @@ export function Navbar({
   currentTab,
   onSelectTab,
   onSelectAnime,
+  onOpenSearch,
   watchlistCount,
   user,
   unreadNotifCount = 0,
@@ -50,9 +53,12 @@ export function Navbar({
 }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Anime[]>([]);
+  const [correctedQuery, setCorrectedQuery] = useState<string | undefined>(undefined);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const searchRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [isMaximized, setIsMaximized] = useState(false);
   const isDesktop = Boolean((window as any).electronAPI);
@@ -69,23 +75,46 @@ export function Navbar({
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setCorrectedQuery(undefined);
       setIsSearching(false);
+      setSelectedIndex(-1);
       return;
     }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const timer = setTimeout(async () => {
       try {
         setIsSearching(true);
-        const results = await searchAnime({ search: searchQuery.trim(), perPage: 6 });
-        setSearchResults(results);
-      } catch (err) {
-        console.error('Search error:', err);
+        const res = await executeIntelligentSearch({
+          query: searchQuery.trim(),
+          perPage: 8,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setSearchResults(res.items);
+          setCorrectedQuery(res.isTypoCorrected ? res.correctedQuery : undefined);
+          setSelectedIndex(-1);
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.error('Search error:', err);
+        }
       } finally {
-        setIsSearching(false);
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
       }
-    }, 300);
+    }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   useEffect(() => {
@@ -170,7 +199,7 @@ export function Navbar({
         </nav>
 
         {/* Center: Live Search Bar with exact screenshot styling */}
-        <div ref={searchRef} className="flex-1 max-w-md mx-2 hidden sm:block relative app-no-drag">
+        <div ref={searchRef} className="flex-1 max-w-[460px] mx-2 hidden sm:block relative app-no-drag">
           <div className="relative flex items-center">
             <Search className="w-4 h-4 text-white/40 absolute left-3.5 pointer-events-none" />
             <input
@@ -181,65 +210,160 @@ export function Navbar({
                 setShowDropdown(true);
               }}
               onFocus={() => setShowDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (!showDropdown) setShowDropdown(true);
+                  setSelectedIndex((prev) => {
+                    const max = searchResults.length > 0 ? searchResults.length : -1;
+                    return prev < max ? prev + 1 : 0;
+                  });
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setSelectedIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
+                    onSelectAnime(searchResults[selectedIndex]);
+                    setShowDropdown(false);
+                  } else if (searchQuery.trim()) {
+                    onOpenSearch?.({ query: searchQuery.trim() });
+                    setShowDropdown(false);
+                  }
+                } else if (e.key === 'Escape') {
+                  setShowDropdown(false);
+                }
+              }}
               placeholder="Search anime, studio, genre..."
               className="w-full bg-[#12151e] border border-white/10 rounded-full pl-10 pr-10 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all"
             />
             <div className="absolute right-3 flex items-center gap-1">
-              {searchQuery && (
+              {isSearching ? (
+                <div className="w-3.5 h-3.5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+              ) : searchQuery ? (
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="text-white/40 hover:text-white p-0.5"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchResults([]);
+                    setShowDropdown(false);
+                  }}
+                  className="text-white/40 hover:text-white p-0.5 cursor-pointer"
+                  title="Clear search"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
 
           {/* Autocomplete Dropdown */}
           {showDropdown && searchQuery.trim() !== '' && (
-            <div className="absolute top-full mt-2 left-0 right-0 bg-[#141822] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in max-h-96 overflow-y-auto divide-y divide-white/[0.04]">
-              {isSearching ? (
-                <div className="p-3 text-center text-xs text-slate-400">Searching anime database...</div>
-              ) : searchResults.length > 0 ? (
-                searchResults.map((anime) => {
-                  const title = anime.title.english || anime.title.romaji || 'Anime';
-                  return (
-                    <div
-                      key={anime.id}
-                      onClick={() => {
-                        onSelectAnime(anime);
-                        setShowDropdown(false);
-                        setSearchQuery('');
-                      }}
-                      className="flex items-center gap-3 p-2.5 hover:bg-blue-600/15 cursor-pointer transition-colors group"
-                    >
-                      <img
-                        src={anime.coverImage.medium || anime.coverImage.large}
-                        alt={title}
-                        className="w-9 h-12 object-cover rounded flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-white truncate group-hover:text-pink-400 transition-colors">
-                          {title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                          <span className="text-blue-400 font-semibold">{anime.format || 'TV'}</span>
-                          <span>•</span>
-                          <span>{anime.episodes ? `${anime.episodes} eps` : 'Ongoing'}</span>
-                          {anime.averageScore && (
-                            <span className="flex items-center text-[#F5C451]">
-                              <Star className="w-2.5 h-2.5 fill-current mr-0.5" />
-                              {(anime.averageScore / 10).toFixed(1)}
-                            </span>
-                          )}
+            <div className="absolute top-full mt-2 left-0 right-0 bg-[#121622] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in divide-y divide-white/[0.04]">
+              {correctedQuery && (
+                <div className="px-3 py-1.5 bg-pink-500/10 border-b border-pink-500/20 text-[11px] text-pink-300 flex items-center justify-between">
+                  <span>
+                    Showing results for <strong className="text-white underline">{correctedQuery}</strong>
+                  </span>
+                </div>
+              )}
+
+              <div className="max-h-[380px] overflow-y-auto divide-y divide-white/[0.04]">
+                {isSearching && searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <span className="w-3 h-3 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></span>
+                    <span>Searching catalog...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((anime, index) => {
+                    const title = anime.title.english || anime.title.romaji || anime.title.userPreferred || 'Anime';
+                    const isSelected = selectedIndex === index;
+                    const subCount = anime.subEpisodeCount || anime.episodes || 0;
+
+                    return (
+                      <div
+                        key={anime.id}
+                        onClick={() => {
+                          onSelectAnime(anime);
+                          setShowDropdown(false);
+                          setSearchQuery('');
+                        }}
+                        onMouseEnter={() => setSelectedIndex(index)}
+                        className={`flex items-center gap-3 p-2.5 transition-colors cursor-pointer group ${
+                          isSelected ? 'bg-pink-600/20 border-l-2 border-pink-500' : 'hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <img
+                          src={anime.coverImage.medium || anime.coverImage.large || './anme-logo-dark.png'}
+                          alt={title}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = './anme-logo-dark.png';
+                          }}
+                          className="w-9 h-12 object-cover rounded bg-[#181c28] flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate group-hover:text-pink-400 transition-colors">
+                            {title}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
+                            <span className="text-blue-400 font-semibold">{anime.format || 'TV'}</span>
+                            {anime.seasonYear && (
+                              <>
+                                <span>•</span>
+                                <span>{anime.seasonYear}</span>
+                              </>
+                            )}
+                            {subCount > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 font-semibold text-[9px]">
+                                  SUB {subCount}
+                                </span>
+                              </>
+                            )}
+                            {anime.averageScore && (
+                              <span className="flex items-center text-[#F5C451] ml-auto">
+                                <Star className="w-2.5 h-2.5 fill-current mr-0.5" />
+                                {(anime.averageScore / 10).toFixed(1)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-3 text-center text-xs text-slate-400">No results found</div>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    <p>No matching anime found for "{searchQuery}"</p>
+                    <button
+                      onClick={() => {
+                        onOpenSearch?.({ query: searchQuery.trim() });
+                        setShowDropdown(false);
+                      }}
+                      className="mt-2 text-pink-400 hover:text-pink-300 text-[11px] font-semibold underline cursor-pointer"
+                    >
+                      Browse full catalog
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* View All Results Action */}
+              {searchResults.length > 0 && (
+                <button
+                  onClick={() => {
+                    onOpenSearch?.({ query: searchQuery.trim() });
+                    setShowDropdown(false);
+                  }}
+                  onMouseEnter={() => setSelectedIndex(searchResults.length)}
+                  className={`w-full py-2.5 px-3 text-center text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedIndex === searchResults.length
+                      ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
+                      : 'bg-[#151926] hover:bg-white/[0.06] text-pink-400 hover:text-pink-300'
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>View all results for "{searchQuery}"</span>
+                </button>
               )}
             </div>
           )}

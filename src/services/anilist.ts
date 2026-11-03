@@ -1,4 +1,4 @@
-import { Anime } from '../types/anime';
+import type { Anime } from '../types/anime.ts';
 
 const ANILIST_URL = 'https://graphql.anilist.co';
 
@@ -23,6 +23,8 @@ const ANIME_FIELDS = `
   episodes
   duration
   genres
+  synonyms
+  isAdult
   averageScore
   popularity
   season
