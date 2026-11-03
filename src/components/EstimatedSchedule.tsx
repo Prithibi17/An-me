@@ -57,10 +57,9 @@ export function EstimatedSchedule({ onSelectAnime, onPlayAnime }: EstimatedSched
     async function fetchWeekly() {
       try {
         setLoading(true);
-        const now = Math.floor(Date.now() / 1000);
-        const daySeconds = 86400;
-        const start = now - 3 * daySeconds;
-        const end = now + 4 * daySeconds;
+        if (days.length === 0) return;
+        const start = days[0].timestamp;
+        const end = days[days.length - 1].timestamp + 86400;
         const data = await getAiringSchedule(start, end);
         setSchedules(data);
       } catch (err) {
@@ -70,7 +69,7 @@ export function EstimatedSchedule({ onSelectAnime, onPlayAnime }: EstimatedSched
       }
     }
     fetchWeekly();
-  }, []);
+  }, [days]);
 
   const daySchedules = useMemo(() => {
     return schedules.filter((item) => {

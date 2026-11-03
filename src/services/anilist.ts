@@ -288,8 +288,11 @@ export async function getAiringSchedule(startOfWeek: number, endOfWeek: number):
   media: Anime;
 }>> {
   const query = `
-    query ($airingAt_greater: Int, $airingAt_lesser: Int) {
-      Page(page: 1, perPage: 50) {
+    query ($airingAt_greater: Int, $airingAt_lesser: Int, $page: Int) {
+      Page(page: $page, perPage: 50) {
+        pageInfo {
+          hasNextPage
+        }
         airingSchedules(airingAt_greater: $airingAt_greater, airingAt_lesser: $airingAt_lesser, sort: TIME) {
           id
           airingAt
@@ -303,22 +306,47 @@ export async function getAiringSchedule(startOfWeek: number, endOfWeek: number):
     }
   `;
 
-  const data = await fetchAniList<{
-    Page: {
-      airingSchedules: Array<{
-        id: number;
-        airingAt: number;
-        timeUntilAiring: number;
-        episode: number;
-        media: Anime;
-      }>;
-    };
-  }>(query, {
-    airingAt_greater: startOfWeek,
-    airingAt_lesser: endOfWeek,
-  });
+  const allSchedules: Array<{
+    id: number;
+    airingAt: number;
+    timeUntilAiring: number;
+    episode: number;
+    media: Anime;
+  }> = [];
 
-  return data.Page.airingSchedules.filter((item) => item.media);
+  // Page through the weekly window so all 7 days are fully populated (AniList caps at 50/page)
+  for (let page = 1; page <= 5; page++) {
+    try {
+      const data = await fetchAniList<{
+        Page: {
+          pageInfo: { hasNextPage: boolean };
+          airingSchedules: Array<{
+            id: number;
+            airingAt: number;
+            timeUntilAiring: number;
+            episode: number;
+            media: Anime;
+          }>;
+        };
+      }>(query, {
+        airingAt_greater: startOfWeek,
+        airingAt_lesser: endOfWeek,
+        page,
+      });
+
+      const items = (data?.Page?.airingSchedules || []).filter((item) => item.media);
+      allSchedules.push(...items);
+
+      if (!data?.Page?.pageInfo?.hasNextPage || items.length < 50) {
+        break;
+      }
+    } catch (err) {
+      console.warn(`[getAiringSchedule] Page ${page} lookup warning:`, err);
+      break;
+    }
+  }
+
+  return allSchedules;
 }
 
 export function getAnimeEpisodeCount(anime: Anime): number {
