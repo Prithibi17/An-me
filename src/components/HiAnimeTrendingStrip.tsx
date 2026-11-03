@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface HiAnimeTrendingStripProps {
   items: Anime[];
@@ -71,7 +72,7 @@ export function HiAnimeTrendingStrip({ items, onSelect }: HiAnimeTrendingStripPr
         className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-smooth pb-2"
       >
         {trendingList.map((item, index) => {
-          const title = item.title.english || item.title.romaji || 'Anime';
+          const title = getAnimeTitle(item);
           const rankStr = String(index + 1).padStart(2, '0');
           const poster = item.coverImage.large || item.coverImage.medium;
           const colorClass = getRankColor(index);

@@ -2,6 +2,7 @@ import { Anime } from '../types/anime';
 import { User, CloudLibraryItem } from '../types/user';
 import { executeSql } from './db';
 import { getWatchlist, saveToWatchlist, removeFromWatchlist } from './storage';
+import { getAnimeTitle } from './titleHelper';
 
 export async function fetchUserCloudLibrary(userId: string): Promise<CloudLibraryItem[]> {
   try {
@@ -26,7 +27,7 @@ export async function syncUserLibrary(user: User): Promise<void> {
       const exists = cloudItems.some((c) => c.animeId === local.id);
       if (!exists) {
         const id = `lib-${user.id}-${local.id}`;
-        const title = local.title.english || local.title.romaji || 'Anime';
+        const title = getAnimeTitle(local);
         const cover = local.coverImage.large || local.coverImage.medium || '';
         await executeSql(
           'INSERT OR IGNORE INTO user_library (id, user_id, anime_id, anime_title, anime_cover, anime_format, anime_episodes, anime_score, status, progress) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -70,7 +71,7 @@ export async function addAnimeToCloud(user: User, anime: Anime, status = 'watchi
   saveToWatchlist(anime);
   try {
     const id = `lib-${user.id}-${anime.id}`;
-    const title = anime.title.english || anime.title.romaji || 'Anime';
+    const title = getAnimeTitle(anime);
     const cover = anime.coverImage.large || anime.coverImage.medium || '';
     await executeSql(
       'INSERT INTO user_library (id, user_id, anime_id, anime_title, anime_cover, anime_format, anime_episodes, anime_score, status, progress) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, anime_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP, status = excluded.status',

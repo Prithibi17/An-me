@@ -18,6 +18,7 @@ import {
   List
 } from 'lucide-react';
 import { Anime, WatchlistStatus } from '../../types/anime';
+import { getAnimeTitle } from '../../services/titleHelper';
 import { getAnimeDetails, getAnimeEpisodeCount, getAnimeEpisodesList } from '../../services/anilist';
 import { getSingleAnimeAvailability } from '../../services/availability';
 import { saveToWatchlist, getWatchlist, getWatchHistory } from '../../services/storage';
@@ -80,7 +81,7 @@ export function DetailsView({
     loadFullDetails();
   }, [anime.id]);
 
-  const title = details.title.english || details.title.romaji || 'Anime';
+  const title = getAnimeTitle(details);
   const subtitle = details.title.native || details.title.romaji || '';
   const banner = details.bannerImage || details.coverImage.extraLarge || details.coverImage.large;
   const poster = details.coverImage.large || details.coverImage.medium;
@@ -591,7 +592,7 @@ export function DetailsView({
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {details.relations.nodes.map((rel: any) => {
-                      const relTitle = rel.title?.english || rel.title?.romaji || rel.title?.native || 'Anime';
+                      const relTitle = getAnimeTitle(rel);
                       return (
                         <div
                           key={rel.id}
@@ -636,7 +637,7 @@ export function DetailsView({
                       .slice(0, 18)
                       .map((n) => {
                         const rec = n.mediaRecommendation!;
-                        const recTitle = rec.title?.english || rec.title?.romaji || rec.title?.native || 'Anime';
+                        const recTitle = getAnimeTitle(rec);
                         return (
                           <div
                             key={rec.id}

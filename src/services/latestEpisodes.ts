@@ -1,4 +1,5 @@
 import type { Anime } from '../types/anime.ts';
+import { resolveProviderTitles } from './titleHelper.ts';
 
 export interface RawProviderAnime {
   id: number;
@@ -195,14 +196,16 @@ export function normalizeProviderRecord(raw: RawProviderAnime, referenceNow = Da
   const genres = raw.terms_by_type?.genre || [];
   const studioName = raw.terms_by_type?.studios?.[0];
 
+  const resolvedTitles = resolveProviderTitles(raw);
+
   return {
     id: canonicalId,
     idMal: malId > 0 ? malId : undefined,
     title: {
-      english: raw.titles || raw.title,
-      romaji: raw.alternative || raw.title,
+      english: resolvedTitles.english,
+      romaji: resolvedTitles.romaji,
       native: raw.native,
-      userPreferred: raw.title,
+      userPreferred: resolvedTitles.userPreferred,
     },
     coverImage: {
       large: raw.poster || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450"><rect width="300" height="450" fill="%2311151b"/><text x="50%" y="50%" fill="%23666" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16">No Poster</text></svg>',

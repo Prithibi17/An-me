@@ -1,6 +1,7 @@
 import type { Anime, WatchHistoryItem } from '../types/anime.ts';
 import { localStore } from './localStore.ts';
 import { recordWatchProgress, getWatchHistory } from './storage.ts';
+import { getAnimeTitle } from './titleHelper.ts';
 
 export type EpisodeWatchStatus = 'unwatched' | 'watching' | 'watched';
 
@@ -149,7 +150,7 @@ export function recordEpisodeProgress(
   durationSeconds?: number
 ): EpisodeProgress {
   const animeId = anime.id;
-  const title = anime.title.english || anime.title.romaji || anime.title.userPreferred || 'Anime';
+  const title = getAnimeTitle(anime);
   const coverImage = anime.coverImage.large || anime.coverImage.medium || '';
   const totalEpisodes = anime.episodes || 12;
 
@@ -209,7 +210,7 @@ export function recordEpisodeProgress(
  */
 export function markEpisodeWatched(anime: Anime, episodeNumber: number): void {
   const animeId = anime.id;
-  const title = anime.title.english || anime.title.romaji || anime.title.userPreferred || 'Anime';
+  const title = getAnimeTitle(anime);
   const coverImage = anime.coverImage.large || anime.coverImage.medium || '';
   const totalEpisodes = anime.episodes || 12;
 

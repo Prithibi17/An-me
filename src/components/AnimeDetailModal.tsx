@@ -8,6 +8,7 @@ import {
   Layers
 } from 'lucide-react';
 import { Anime, WatchlistStatus } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { getAnimeDetails } from '../services/anilist';
 import { saveToWatchlist, getWatchlist } from '../services/storage';
 
@@ -51,7 +52,7 @@ export function AnimeDetailModal({
     loadFullDetails();
   }, [anime.id]);
 
-  const title = details.title.english || details.title.romaji || 'Anime';
+  const title = getAnimeTitle(details);
   const banner = details.bannerImage || details.coverImage.extraLarge || details.coverImage.large;
   const poster = details.coverImage.large || details.coverImage.medium;
 
@@ -319,7 +320,7 @@ export function AnimeDetailModal({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {details.relations?.nodes && details.relations.nodes.length > 0 ? (
                 details.relations.nodes.map((rel) => {
-                  const relTitle = rel.title.english || rel.title.romaji || 'Anime';
+                  const relTitle = getAnimeTitle(rel);
                   return (
                     <div
                       key={rel.id}

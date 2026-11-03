@@ -17,6 +17,7 @@ import {
   Radio
 } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { User } from '../types/user';
 import { searchAnime } from '../services/anilist';
 import { getAvatarSrc } from '../services/avatarRegistry';
@@ -275,7 +276,7 @@ export function Navbar({
                   </div>
                 ) : searchResults.length > 0 ? (
                   searchResults.map((anime, index) => {
-                    const title = anime.title.english || anime.title.romaji || anime.title.userPreferred || 'Anime';
+                    const title = getAnimeTitle(anime);
                     const isSelected = selectedIndex === index;
                     const subCount = anime.subEpisodeCount || anime.episodes || 0;
 

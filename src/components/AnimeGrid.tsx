@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LucideIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Anime } from '../types/anime';
 import { AnimeCard } from './AnimeCard';
+import { getAnimeTitle } from '../services/titleHelper';
 
 export type EpisodeFilterType = 'all' | 'sub' | 'dub';
 
@@ -270,7 +271,7 @@ export function AnimeGrid({
               ref={(el) => { cardRefs.current[index] = el; }}
               tabIndex={0}
               role="button"
-              aria-label={anime.title.english || anime.title.romaji || 'Anime'}
+              aria-label={getAnimeTitle(anime)}
               onFocus={() => setFocusedIndex(index)}
               className="w-[calc((100%-12px)/2)] sm:w-[calc((100%-32px)/3)] md:w-[calc((100%-48px)/4)] lg:w-[calc((100%-64px)/5)] xl:w-[calc((100%-80px)/6)] shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 rounded-lg transition-transform"
             >

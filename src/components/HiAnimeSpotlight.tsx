@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, ChevronLeft, ChevronRight, Subtitles, Mic, Calendar, Clock, Plus, Check } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { saveToWatchlist, getWatchlist } from '../services/storage';
 
 interface HiAnimeSpotlightProps {
@@ -31,7 +32,7 @@ export function HiAnimeSpotlight({ spotlightList, onPlay, onOpenDetails }: HiAni
   if (list.length === 0) return null;
 
   const current = list[currentIndex];
-  const title = current.title.english || current.title.romaji || 'Anime';
+  const title = getAnimeTitle(current);
   const bannerUrl = current.bannerImage || current.coverImage.extraLarge || current.coverImage.large;
   const isSaved = savedIds.includes(current.id);
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark, Play, Trash2, CheckCircle2, Clock, Heart, Eye, Database } from 'lucide-react';
 import { Anime, WatchlistItem, WatchlistStatus } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { getWatchlist, removeFromWatchlist, saveToWatchlist } from '../services/storage';
 import { getCurrentUser } from '../services/auth';
 import { addAnimeToCloud, removeAnimeFromCloud } from '../services/librarySync';
@@ -118,7 +119,7 @@ export function LibraryView({ onSelectAnime, onPlayAnime, onUpdateCount }: Libra
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
           {filteredItems.map(({ anime, status, lastWatchedEpisode }) => {
-            const title = anime.title.english || anime.title.romaji || 'Anime';
+            const title = getAnimeTitle(anime);
             const poster = anime.coverImage.large || anime.coverImage.medium;
 
             return (

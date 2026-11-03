@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Star, Play, ChevronRight } from 'lucide-react';
 import { Anime } from '../types/anime';
 import { getAiringSchedule } from '../services/anilist';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface ScheduleViewProps {
   onSelectAnime: (anime: Anime) => void;
@@ -95,7 +96,7 @@ export function ScheduleView({ onSelectAnime, onPlayAnime }: ScheduleViewProps) 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((item) => {
             const anime: Anime = item.media;
-            const title = anime.title.english || anime.title.romaji || 'Anime';
+            const title = getAnimeTitle(anime);
             const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',

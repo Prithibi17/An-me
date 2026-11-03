@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Flame, Star, Play, Trophy } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface Top10SectionProps {
   topAnime: Anime[];
@@ -49,7 +50,7 @@ export function Top10Section({ topAnime, onSelectAnime, onPlayAnime }: Top10Sect
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {displayedList.map((anime, index) => {
           const rank = index + 1;
-          const title = anime.title.english || anime.title.romaji || 'Anime';
+          const title = getAnimeTitle(anime);
           const poster = anime.coverImage.medium || anime.coverImage.large;
 
           return (

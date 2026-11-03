@@ -1,4 +1,5 @@
 import type { Anime, WatchHistoryItem, WatchlistItem, WatchlistStatus } from '../types/anime.ts';
+import { getAnimeTitle } from './titleHelper.ts';
 
 const WATCHLIST_KEY = 'anme_desktop_watchlist';
 const HISTORY_KEY = 'anme_desktop_history';
@@ -51,7 +52,7 @@ export function saveToWatchlist(anime: Anime, status: WatchlistStatus, lastWatch
 
     // Show native desktop notification if in Electron
     if ((window as any).electronAPI?.showNotification) {
-      const titleName = anime.title.english || anime.title.romaji || 'Anime';
+      const titleName = getAnimeTitle(anime);
       (window as any).electronAPI.showNotification('Watchlist Updated', `"${titleName}" set to ${status.replace(/_/g, ' ')}`);
     }
   } catch (err) {
@@ -84,7 +85,7 @@ export function recordWatchProgress(
 ): void {
   try {
     const history = getWatchHistory();
-    const title = anime.title.english || anime.title.romaji || 'Anime';
+    const title = getAnimeTitle(anime);
     const coverImage = anime.coverImage.large || anime.coverImage.medium || '';
 
     const existingIndex = history.findIndex((h) => h.animeId === anime.id);

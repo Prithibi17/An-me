@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Play, Clock, Calendar } from 'lucide-react';
 import { Anime } from '../types/anime';
 import { getAiringSchedule } from '../services/anilist';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface EstimatedScheduleProps {
   onSelectAnime: (anime: Anime) => void;
@@ -122,7 +123,7 @@ export function EstimatedSchedule({ onSelectAnime, onPlayAnime }: EstimatedSched
         ) : (
           daySchedules.map((item) => {
             const anime = item.media;
-            const title = anime.title.english || anime.title.romaji || 'Anime';
+            const title = getAnimeTitle(anime);
             const timeStr = new Date(item.airingAt * 1000).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',

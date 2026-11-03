@@ -6,6 +6,7 @@ import {
   Server
 } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { getStreamUrl } from '../services/providers';
 import { recordWatchProgress, getPreferences, savePreferences } from '../services/storage';
 
@@ -34,7 +35,7 @@ export function DesktopPlayer({
   }, [hasDub, track]);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
 
-  const title = anime.title.english || anime.title.romaji || 'Anime';
+  const title = getAnimeTitle(anime);
   const totalEpisodes = anime.episodes || 12;
 
   useEffect(() => {

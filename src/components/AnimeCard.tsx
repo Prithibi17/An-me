@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Play, Subtitles, Mic } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -12,7 +13,7 @@ interface AnimeCardProps {
 const FALLBACK_POSTER = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450"><rect width="300" height="450" fill="%2311151b"/><text x="50%" y="48%" fill="%23ff2f6d" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="28">An:me</text><text x="50%" y="56%" fill="%23666" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="12">No Image</text></svg>';
 
 export function AnimeCard({ anime, onSelect, onPlay, rank }: AnimeCardProps) {
-  const title = anime.title.english || anime.title.romaji || 'Anime';
+  const title = getAnimeTitle(anime);
   const poster = anime.coverImage.large || anime.coverImage.medium || FALLBACK_POSTER;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
   const subCount = anime.subEpisodeCount || (anime.nextAiringEpisode?.episode

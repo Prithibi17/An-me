@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarDays, Star, Subtitles, Mic } from 'lucide-react';
 import { Anime } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 
 interface CinematicMediaRowProps {
   anime: Anime;
@@ -9,7 +10,7 @@ interface CinematicMediaRowProps {
 }
 
 export function CinematicMediaRow({ anime, rank, onSelect }: CinematicMediaRowProps) {
-  const title = anime.title.english || anime.title.romaji || 'Anime';
+  const title = getAnimeTitle(anime);
   const poster = anime.coverImage.large || anime.coverImage.medium;
   const banner = anime.bannerImage || poster;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;

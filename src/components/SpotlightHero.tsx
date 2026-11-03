@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Plus, Check, Info, Star, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Anime, WatchlistStatus } from '../types/anime';
+import { getAnimeTitle } from '../services/titleHelper';
 import { saveToWatchlist, getWatchlist } from '../services/storage';
 
 interface SpotlightHeroProps {
@@ -30,7 +31,7 @@ export function SpotlightHero({ animeList, onPlay, onOpenDetails }: SpotlightHer
   if (!animeList || animeList.length === 0) return null;
 
   const currentAnime = animeList[currentIndex];
-  const title = currentAnime.title.english || currentAnime.title.romaji || 'Anime';
+  const title = getAnimeTitle(currentAnime);
   const banner = currentAnime.bannerImage || currentAnime.coverImage.extraLarge || currentAnime.coverImage.large;
   const isSaved = watchlistIds.includes(currentAnime.id);
 
