@@ -30,6 +30,10 @@ import {
   getRecentlyUpdatedAnime,
   getAnimeDetails
 } from './services/anilist';
+import {
+  fetchLatestEpisodesFeed,
+  EpisodeAudioFilter,
+} from './services/latestEpisodes';
 import { getWatchlist } from './services/storage';
 import { enrichAnimeAvailability } from './services/availability';
 import { getCurrentUser, restoreAuthSession } from './services/auth';
@@ -43,35 +47,41 @@ import {
 
 export function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'home' | 'details' | 'watch' | 'search' | 'schedule' | 'library' | 'history'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'details' | 'watch' | 'search' | 'schedule' | 'library' | 'history' | 'latest-episodes'>('home');
   const [searchParams, setSearchParams] = useState<{ query?: string; genre?: string }>({});
 
   const [trending, setTrending] = useState<Anime[]>([]);
   const [popularSeason, setPopularSeason] = useState<Anime[]>([]);
   const [topRated, setTopRated] = useState<Anime[]>([]);
-  const [recentlyUpdated, setRecentlyUpdated] = useState<Anime[]>([]);
-  const [recentPage, setRecentPage] = useState(1);
-  const [loadingRecent, setLoadingRecent] = useState(false);
+  const [latestEpisodes, setLatestEpisodes] = useState<Anime[]>([]);
+  const [latestPage, setLatestPage] = useState(1);
+  const [latestTotalPages, setLatestTotalPages] = useState(1);
+  const [latestAudioFilter, setLatestAudioFilter] = useState<EpisodeAudioFilter>('all');
+  const [loadingLatest, setLoadingLatest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
 
-  const handleRecentPageChange = async (newPage: number) => {
-    if (newPage < 1 || loadingRecent) return;
+  const loadLatestFeed = async (targetPage = 1, perPage = 24, filter: EpisodeAudioFilter = latestAudioFilter) => {
+    if (loadingLatest) return;
     try {
-      setLoadingRecent(true);
-      const rawRecent = await getRecentlyUpdatedAnime(newPage, 24);
-      if (rawRecent && rawRecent.length > 0) {
-        setRecentPage(newPage);
-        setRecentlyUpdated(rawRecent);
-        enrichAnimeAvailability(rawRecent).then((enriched) => {
-          const byId = new Map(enriched.map((a) => [a.id, a]));
-          setRecentlyUpdated(rawRecent.map((a) => byId.get(a.id) || a));
-        }).catch(console.error);
+      setLoadingLatest(true);
+      const res = await fetchLatestEpisodesFeed(targetPage, perPage, filter);
+      if (res.items && res.items.length > 0) {
+        setLatestEpisodes(res.items);
+        setLatestPage(res.currentPage);
+        setLatestTotalPages(res.totalPages);
+        setLatestAudioFilter(filter);
+      } else {
+        const fallback = await getRecentlyUpdatedAnime(targetPage, perPage);
+        if (fallback && fallback.length > 0) {
+          setLatestEpisodes(fallback);
+          setLatestPage(targetPage);
+        }
       }
     } catch (err) {
-      console.error('Failed to paginate recent anime:', err);
+      console.error('Failed to load latest episodes feed:', err);
     } finally {
-      setLoadingRecent(false);
+      setLoadingLatest(false);
     }
   };
 
@@ -134,26 +144,33 @@ export function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [rawTrending, rawPopular, rawTop, rawRecent] = await Promise.all([
+        const [rawTrending, rawPopular, rawTop, latestResult] = await Promise.all([
           getTrendingAnime(1, 10),
           getPopularSeasonAnime(1, 12),
           getTopRatedAnime(1, 12),
-          getRecentlyUpdatedAnime(1, 24),
+          fetchLatestEpisodesFeed(1, 24, 'all'),
         ]);
 
         setTrending(rawTrending);
         setPopularSeason(rawPopular);
         setTopRated(rawTop);
-        setRecentlyUpdated(rawRecent);
+
+        if (latestResult.items && latestResult.items.length > 0) {
+          setLatestEpisodes(latestResult.items);
+          setLatestPage(latestResult.currentPage);
+          setLatestTotalPages(latestResult.totalPages);
+        } else {
+          const rawRecent = await getRecentlyUpdatedAnime(1, 24);
+          setLatestEpisodes(rawRecent);
+        }
 
         // Enrich with real dub and sub counts from catalog
-        const allItems = [...rawTrending, ...rawPopular, ...rawTop, ...rawRecent];
+        const allItems = [...rawTrending, ...rawPopular, ...rawTop];
         enrichAnimeAvailability(allItems).then((enriched) => {
           const byId = new Map(enriched.map((a) => [a.id, a]));
           setTrending(rawTrending.map((a) => byId.get(a.id) || a));
           setPopularSeason(rawPopular.map((a) => byId.get(a.id) || a));
           setTopRated(rawTop.map((a) => byId.get(a.id) || a));
-          setRecentlyUpdated(rawRecent.map((a) => byId.get(a.id) || a));
         }).catch(console.error);
       } catch (err) {
         console.error('Failed to load anime feed:', err);
@@ -169,7 +186,7 @@ export function App() {
       if (e.key === 'Escape') {
         if (currentTab === 'watch' && activeAnime) {
           setCurrentTab('details');
-        } else if (currentTab === 'details') {
+        } else if (currentTab === 'details' || currentTab === 'latest-episodes') {
           setCurrentTab('home');
         } else if (isSidebarOpen) {
           setIsSidebarOpen(false);
@@ -355,16 +372,21 @@ export function App() {
                 <AnimeGrid
                   title="Latest Episodes"
                   icon={Clock}
-                  animeList={recentlyUpdated}
+                  animeList={latestEpisodes.slice(0, 12)}
                   onSelectAnime={handleOpenDetails}
-                  onPlayAnime={(anime) => handleStartPlay(anime, 1)}
-                  page={recentPage}
-                  hasPrevPage={recentPage > 1}
-                  hasNextPage={true}
-                  isLoadingPage={loadingRecent}
-                  onPrevPage={() => handleRecentPageChange(recentPage - 1)}
-                  onNextPage={() => handleRecentPageChange(recentPage + 1)}
-                  onPageChange={handleRecentPageChange}
+                  onPlayAnime={(anime) => handleStartPlay(anime, anime.latestEpisodeNumber || 1)}
+                  onViewAll={() => {
+                    setCurrentTab('latest-episodes');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  page={latestPage}
+                  totalPages={latestTotalPages}
+                  hasPrevPage={latestPage > 1}
+                  hasNextPage={latestPage < latestTotalPages}
+                  isLoadingPage={loadingLatest}
+                  onPrevPage={() => loadLatestFeed(latestPage - 1, 24, latestAudioFilter)}
+                  onNextPage={() => loadLatestFeed(latestPage + 1, 24, latestAudioFilter)}
+                  onPageChange={(newPage) => loadLatestFeed(newPage, 24, latestAudioFilter)}
                 />
 
                 <AnimeGrid
@@ -403,6 +425,47 @@ export function App() {
               latestCompleted={trending}
               onSelectAnime={handleOpenDetails}
               onViewMore={() => handleOpenSearch({})}
+            />
+          </main>
+        )}
+
+        {/* VIEW: Dedicated Full Latest Episodes Page */}
+        {currentTab === 'latest-episodes' && (
+          <main className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+            <div className="flex items-center gap-2 mb-6 text-xs text-white/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentTab('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="hover:text-pink-400 transition-colors cursor-pointer"
+              >
+                Home
+              </button>
+              <span>/</span>
+              <span className="text-white font-medium">Latest Episodes</span>
+            </div>
+
+            <AnimeGrid
+              title="Latest Episodes"
+              icon={Clock}
+              animeList={latestEpisodes}
+              onSelectAnime={handleOpenDetails}
+              onPlayAnime={(anime) => handleStartPlay(anime, anime.latestEpisodeNumber || 1)}
+              page={latestPage}
+              totalPages={latestTotalPages}
+              hasPrevPage={latestPage > 1}
+              hasNextPage={latestPage < latestTotalPages}
+              isLoadingPage={loadingLatest}
+              audioFilter={latestAudioFilter}
+              onFilterChange={(filter) => {
+                setLatestAudioFilter(filter);
+                loadLatestFeed(1, 24, filter);
+              }}
+              onPrevPage={() => loadLatestFeed(latestPage - 1, 24, latestAudioFilter)}
+              onNextPage={() => loadLatestFeed(latestPage + 1, 24, latestAudioFilter)}
+              onPageChange={(newPage) => loadLatestFeed(newPage, 24, latestAudioFilter)}
             />
           </main>
         )}

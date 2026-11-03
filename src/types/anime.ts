@@ -50,6 +50,10 @@ export interface Anime {
   episodes?: number | null;
   subEpisodeCount?: number;
   dubEpisodeCount?: number;
+  latestEpisodeNumber?: number;
+  latestEpisodeTimestamp?: number;
+  relativeUpdateTime?: string;
+  providerId?: number;
   duration?: number | null;
   genres: string[];
   averageScore?: number | null;

@@ -9,9 +9,11 @@ interface AnimeCardProps {
   rank?: number;
 }
 
+const FALLBACK_POSTER = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450"><rect width="300" height="450" fill="%2311151b"/><text x="50%" y="48%" fill="%23ff2f6d" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="28">An:me</text><text x="50%" y="56%" fill="%23666" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="12">No Image</text></svg>';
+
 export function AnimeCard({ anime, onSelect, onPlay, rank }: AnimeCardProps) {
   const title = anime.title.english || anime.title.romaji || 'Anime';
-  const poster = anime.coverImage.large || anime.coverImage.medium;
+  const poster = anime.coverImage.large || anime.coverImage.medium || FALLBACK_POSTER;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
   const subCount = anime.subEpisodeCount || (anime.nextAiringEpisode?.episode
     ? anime.nextAiringEpisode.episode - 1
@@ -49,6 +51,11 @@ export function AnimeCard({ anime, onSelect, onPlay, rank }: AnimeCardProps) {
           src={poster}
           alt={title}
           loading="lazy"
+          onError={(e) => {
+            if (e.currentTarget.src !== FALLBACK_POSTER) {
+              e.currentTarget.src = FALLBACK_POSTER;
+            }
+          }}
           className="w-full h-full object-cover transition-opacity duration-200 group-hover:opacity-95"
         />
 
@@ -68,7 +75,7 @@ export function AnimeCard({ anime, onSelect, onPlay, rank }: AnimeCardProps) {
           </div>
         )}
 
-        {/* Rating Badge (Solid background, locked to poster) */}
+        {/* Rating Badge or Relative Update Time */}
         {score && (
           <div className="absolute top-2 right-2 z-10 pointer-events-none">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#0a0d14] text-[#F5C451] text-xs font-semibold border border-white/10 shadow-sm">
@@ -101,14 +108,21 @@ export function AnimeCard({ anime, onSelect, onPlay, rank }: AnimeCardProps) {
         </div>
       </div>
 
-      {/* Title */}
+      {/* Title & Metadata */}
       <div className="mt-2 px-0.5">
         <h3 className="line-clamp-2 text-xs sm:text-sm font-semibold text-white group-hover:text-pink-400 transition-colors leading-snug">
           {title}
         </h3>
-        <p className="text-[11px] font-medium text-white/40 mt-0.5 truncate">
-          {anime.genres.slice(0, 2).join(' • ') || (anime.season ? `${anime.season} ${anime.seasonYear || ''}` : 'Anime')}
-        </p>
+        <div className="flex items-center justify-between gap-1 text-[11px] font-medium text-white/40 mt-0.5">
+          <span className="truncate">
+            {anime.genres.slice(0, 2).join(' • ') || (anime.season ? `${anime.season} ${anime.seasonYear || ''}` : 'Anime')}
+          </span>
+          {anime.relativeUpdateTime && (
+            <span className="shrink-0 text-[10px] font-mono text-pink-400/90 bg-pink-950/40 px-1.5 py-0.5 rounded border border-pink-500/20 shadow-xs">
+              {anime.relativeUpdateTime}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

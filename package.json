@@ -7,7 +7,8 @@
     "dev:web": "vite",
     "build": "vite build",
     "desktop": "npm run build && electron .",
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node --experimental-strip-types --test tests/latestEpisodes.test.mjs"
   },
   "keywords": [
     "anime",

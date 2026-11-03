@@ -1,0 +1,296 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  parseAvailabilityTimestamp,
+  formatRelativeTime,
+  normalizeProviderRecord,
+  deduplicateAnimeRecords,
+  sortLatestEpisodes,
+} from '../src/services/latestEpisodes.ts';
+
+describe('An:me — Latest Episodes Feed Deterministic Test Suite', () => {
+
+  // 1. Newer availability timestamps sorting first
+  it('1. Newer availability timestamps sorting first (irrespective of premiere date, score, or popularity)', () => {
+    const olderAvailability = {
+      id: 101,
+      title: { english: 'Show A' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 1700000000000, // Older availability
+      seasonYear: 2026,
+      averageScore: 95,
+      subEpisodeCount: 12,
+    };
+    const newerAvailability = {
+      id: 102,
+      title: { english: 'Show B' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 1700050000000, // Newer availability
+      seasonYear: 2010,
+      averageScore: 60,
+      subEpisodeCount: 1,
+    };
+
+    const sorted = sortLatestEpisodes([olderAvailability, newerAvailability]);
+    assert.equal(sorted[0].id, 102, 'Newer availability timestamp must sort to index 0');
+    assert.equal(sorted[1].id, 101, 'Older availability timestamp must sort to index 1');
+  });
+
+  // 2. Older anime returning to the top when newly updated
+  it('2. Older anime returning to the top when newly updated with a new episode', () => {
+    const classicAnime = {
+      id: 50,
+      title: { english: 'One Piece (1999)' },
+      coverImage: {},
+      genres: [],
+      seasonYear: 1999,
+      latestEpisodeTimestamp: 1730000000000, // Updated 1 hour ago
+      subEpisodeCount: 1120,
+    };
+    const modernAnime = {
+      id: 99,
+      title: { english: 'Brand New 2026 Show' },
+      coverImage: {},
+      genres: [],
+      seasonYear: 2026,
+      latestEpisodeTimestamp: 1729000000000, // Updated yesterday
+      subEpisodeCount: 4,
+    };
+
+    const sorted = sortLatestEpisodes([modernAnime, classicAnime]);
+    assert.equal(sorted[0].id, 50, 'Classic 1999 anime with recent episode update must jump to #1');
+  });
+
+  // 3. Duplicate episode mirrors being removed
+  it('3. Duplicate episode mirrors being removed and merged into one canonical card', () => {
+    const mirrorServer1 = {
+      id: 200,
+      title: { english: 'Attack on Titan' },
+      coverImage: { large: 'https://cdn.example.com/poster1.jpg' },
+      genres: ['Action'],
+      latestEpisodeNumber: 5,
+      subEpisodeCount: 5,
+      dubEpisodeCount: 3,
+      latestEpisodeTimestamp: 1700000000000,
+    };
+    const mirrorServer2 = {
+      id: 200,
+      title: { english: 'Attack on Titan' },
+      coverImage: { large: 'https://cdn.example.com/poster1.jpg' },
+      genres: ['Action'],
+      latestEpisodeNumber: 6,
+      subEpisodeCount: 6,
+      dubEpisodeCount: 4,
+      latestEpisodeTimestamp: 1700010000000, // Newer mirror
+    };
+    const anotherShow = {
+      id: 201,
+      title: { english: 'Other Show' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeNumber: 1,
+      subEpisodeCount: 1,
+      dubEpisodeCount: 0,
+      latestEpisodeTimestamp: 1700000000000,
+    };
+
+    const deduplicated = deduplicateAnimeRecords([mirrorServer1, mirrorServer2, anotherShow]);
+    assert.equal(deduplicated.length, 2, 'Should combine duplicate mirrors for id 200');
+
+    const merged200 = deduplicated.find((a) => a.id === 200);
+    assert.ok(merged200, 'Merged anime exists');
+    assert.equal(merged200.subEpisodeCount, 6, 'Merged sub episode count should be the maximum available');
+    assert.equal(merged200.dubEpisodeCount, 4, 'Merged dub episode count should be the maximum available');
+    assert.equal(merged200.latestEpisodeTimestamp, 1700010000000, 'Merged timestamp should be newest');
+  });
+
+  // 4. SUB/DUB updates being handled correctly
+  it('4. SUB/DUB updates being handled correctly and filtered properly', () => {
+    const subOnly = {
+      id: 301,
+      title: { english: 'Sub Only Anime' },
+      coverImage: {},
+      genres: [],
+      subEpisodeCount: 12,
+      dubEpisodeCount: 0,
+      latestEpisodeTimestamp: 1700000000000,
+    };
+    const dubOnly = {
+      id: 302,
+      title: { english: 'Dub Only Anime' },
+      coverImage: {},
+      genres: [],
+      subEpisodeCount: 0,
+      dubEpisodeCount: 8,
+      latestEpisodeTimestamp: 1700000000000,
+    };
+    const both = {
+      id: 303,
+      title: { english: 'Both Sub and Dub Anime' },
+      coverImage: {},
+      genres: [],
+      subEpisodeCount: 12,
+      dubEpisodeCount: 12,
+      latestEpisodeTimestamp: 1700000000000,
+    };
+
+    const list = [subOnly, dubOnly, both];
+    const subResults = sortLatestEpisodes(list, 'sub');
+    const dubResults = sortLatestEpisodes(list, 'dub');
+
+    assert.equal(subResults.length, 2, 'SUB filter should only include items with subEpisodeCount > 0');
+    assert.ok(subResults.some((a) => a.id === 301));
+    assert.ok(subResults.some((a) => a.id === 303));
+    assert.ok(!subResults.some((a) => a.id === 302));
+
+    assert.equal(dubResults.length, 2, 'DUB filter should only include items with dubEpisodeCount > 0');
+    assert.ok(dubResults.some((a) => a.id === 302));
+    assert.ok(dubResults.some((a) => a.id === 303));
+    assert.ok(!dubResults.some((a) => a.id === 301));
+  });
+
+  // 5. Missing timestamp handling
+  it('5. Missing timestamp handling (retains authoritative fallback group at bottom)', () => {
+    const validTime1 = {
+      id: 401,
+      title: { english: 'Show with Time 1' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 1700000000000,
+    };
+    const validTime2 = {
+      id: 402,
+      title: { english: 'Show with Time 2' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 1700050000000,
+    };
+    const noTimeA = {
+      id: 403,
+      title: { english: 'No Time A' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 0,
+    };
+    const noTimeB = {
+      id: 404,
+      title: { english: 'No Time B' },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 0,
+    };
+
+    const sorted = sortLatestEpisodes([noTimeA, validTime1, noTimeB, validTime2]);
+    assert.equal(sorted[0].id, 402, 'Newest verified time at index 0');
+    assert.equal(sorted[1].id, 401, 'Older verified time at index 1');
+    assert.equal(sorted[2].id, 403, 'Fallback group preserves original provider order');
+    assert.equal(sorted[3].id, 404, 'Fallback group preserves original provider order');
+  });
+
+  // 6. Pagination without duplicates or skipped records
+  it('6. Pagination slices dataset without duplicates or skipped records', () => {
+    const items = Array.from({ length: 48 }, (_, i) => ({
+      id: i + 1,
+      title: { english: `Anime ${i + 1}` },
+      coverImage: {},
+      genres: [],
+      latestEpisodeTimestamp: 1700000000000 - i * 1000,
+    }));
+
+    const sorted = sortLatestEpisodes(items);
+    const perPage = 24;
+    const page1 = sorted.slice(0, perPage);
+    const page2 = sorted.slice(perPage, perPage * 2);
+
+    assert.equal(page1.length, 24);
+    assert.equal(page2.length, 24);
+
+    const ids1 = new Set(page1.map((a) => a.id));
+    const ids2 = new Set(page2.map((a) => a.id));
+
+    // Zero overlap
+    for (const id of ids1) {
+      assert.ok(!ids2.has(id), `ID ${id} must not appear on both page 1 and page 2`);
+    }
+    // Full coverage
+    assert.equal(ids1.size + ids2.size, 48, 'Combined pages must cover entire 48 records');
+  });
+
+  // 7. New releases arriving during pagination
+  it('7. Handles new releases arriving dynamically via deduplication without card collision', () => {
+    const page1 = [
+      { id: 1, title: { english: 'Ep 1' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 100 },
+      { id: 2, title: { english: 'Ep 2' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 90 },
+    ];
+    // Dynamic update arrives containing an updated record for item 2 and brand new item 3
+    const newBatch = [
+      { id: 3, title: { english: 'Ep 3' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 120 },
+      { id: 2, title: { english: 'Ep 2 updated' }, coverImage: {}, genres: [], latestEpisodeTimestamp: 110 },
+    ];
+
+    const deduplicated = deduplicateAnimeRecords([...page1, ...newBatch]);
+    const sorted = sortLatestEpisodes(deduplicated);
+
+    assert.equal(sorted.length, 3, 'Merged list contains unique 3 anime');
+    assert.equal(sorted[0].id, 3, 'New release is #1');
+    assert.equal(sorted[1].id, 2, 'Updated release is #2');
+    assert.equal(sorted[2].id, 1, 'Older release is #3');
+  });
+
+  // 8. Empty provider results
+  it('8. Empty provider results are handled gracefully without error', () => {
+    const emptyNormalized = deduplicateAnimeRecords([]);
+    const sorted = sortLatestEpisodes(emptyNormalized);
+    assert.deepEqual(sorted, [], 'Empty input produces empty array cleanly');
+  });
+
+  // 9. Temporary API failures / malformed timestamps
+  it('9. Malformed timestamps fall back to 0 without throwing error', () => {
+    assert.equal(parseAvailabilityTimestamp(''), 0);
+    assert.equal(parseAvailabilityTimestamp('invalid-date'), 0);
+    assert.equal(parseAvailabilityTimestamp(undefined), 0);
+    assert.ok(parseAvailabilityTimestamp('2026-11-02 18:16:27') > 0);
+  });
+
+  // 10. Missing posters fallback
+  it('10. Missing posters provide valid local fallback placeholder image', () => {
+    const rawNoPoster = {
+      id: 999,
+      title: 'No Poster Show',
+      poster: '',
+    };
+    const normalized = normalizeProviderRecord(rawNoPoster);
+    assert.ok(normalized.coverImage.large, 'Cover image must never be undefined');
+    assert.ok(normalized.coverImage.large.includes('svg'), 'Fallback SVG placeholder provided');
+  });
+
+  // 11. Relative update time formatting
+  it('11. Relative update time formatting provides verified human readable intervals', () => {
+    const now = 1700000000000;
+    assert.equal(formatRelativeTime(now - 1000 * 30, now), 'Just now');
+    assert.equal(formatRelativeTime(now - 1000 * 60 * 5, now), '5m ago');
+    assert.equal(formatRelativeTime(now - 1000 * 60 * 60 * 2, now), '2h ago');
+    assert.equal(formatRelativeTime(now - 1000 * 60 * 60 * 25, now), 'Yesterday');
+    assert.equal(formatRelativeTime(now - 1000 * 60 * 60 * 24 * 3, now), '3d ago');
+  });
+
+  // 12. Differences between Latest Episodes, Recently Added, and Airing Schedule
+  it('12. Distinguishes Latest Episodes availability from Airing Schedule countdown', () => {
+    // Airing schedule has future timestamp
+    const futureBroadcast = {
+      airingAt: Math.floor(Date.now() / 1000) + 3600 * 24, // 1 day in the future
+      episode: 5,
+    };
+    // Latest episode must NOT display future episode as playable
+    const rawAiringAnime = {
+      id: 888,
+      title: 'Airing Anime',
+      next_air_ep: 5,
+      is_sub: 5, // provider incorrectly labeled sub 5 before air
+    };
+    const normalized = normalizeProviderRecord(rawAiringAnime);
+    assert.equal(normalized.subEpisodeCount, 4, 'Playable sub episode cannot equal or exceed next_air_ep');
+  });
+});
