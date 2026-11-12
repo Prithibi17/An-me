@@ -10,6 +10,36 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.anme.desktop');
 }
 
+// Headless Silent In-Place Update Mode (triggered by updater or installer updating an existing app)
+const isSilentUpdate = process.argv.includes('--silent-update') || process.argv.includes('--in-place-update');
+if (isSilentUpdate) {
+  console.log('[SILENT UPDATE] Running headless in-place updater...');
+  const targetArg = process.argv.find((a) => a.startsWith('--target=') || a.startsWith('--install-path='));
+  const targetDir = targetArg ? targetArg.split('=')[1].replace(/^["']|["']$/g, '') : null;
+
+  if (targetDir && fs.existsSync(targetDir)) {
+    try {
+      const execDir = path.dirname(process.execPath);
+      const srcResources = path.join(execDir, 'resources');
+      const destResources = path.join(targetDir, 'resources');
+
+      if (fs.existsSync(srcResources) && fs.existsSync(destResources)) {
+        console.log('[SILENT UPDATE] Copying updated resources to:', destResources);
+        copyRecursiveSync(srcResources, destResources);
+      }
+
+      // Relaunch the updated main application
+      const targetExe = path.join(targetDir, 'An-me.exe');
+      if (fs.existsSync(targetExe)) {
+        spawn(targetExe, [], { detached: true, stdio: 'ignore' }).unref();
+      }
+    } catch (err) {
+      console.error('[SILENT UPDATE] Error updating resources:', err);
+    }
+  }
+  process.exit(0);
+}
+
 Menu.setApplicationMenu(null);
 
 let mainWindow = null;
@@ -342,17 +372,18 @@ function downloadFileWithRedirects(url, destPath, onProgress) {
 
 ipcMain.handle('updater-download-and-install', async (event, { downloadUrl, fileName }) => {
   console.log('[UPDATER] Starting update download from:', downloadUrl);
-  const tempInstaller = path.join(app.getPath('temp'), fileName || 'An-me-Setup.exe');
+  const resolvedFileName = fileName || path.basename(new URL(downloadUrl).pathname) || 'An-me-Update.zip';
+  const tempDownloadPath = path.join(app.getPath('temp'), resolvedFileName);
 
   try {
-    await downloadFileWithRedirects(downloadUrl, tempInstaller, (progress) => {
+    await downloadFileWithRedirects(downloadUrl, tempDownloadPath, (progress) => {
       event.sender.send('updater-progress', progress);
     });
 
-    console.log('[UPDATER] Download completed. Saved to:', tempInstaller);
+    console.log('[UPDATER] Download completed. Saved to:', tempDownloadPath);
     event.sender.send('updater-progress', { percent: 100, status: 'installing' });
 
-    // Detect installation folder from Windows Registry
+    // Detect installation folder from Registry or current process directory
     let targetInstallPath = '';
     try {
       const regOut = execSync('powershell -NoProfile -Command "(Get-ItemProperty -Path HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\An-me -Name InstallLocation -ErrorAction SilentlyContinue).InstallLocation"', { encoding: 'utf8' }).trim();
@@ -361,21 +392,82 @@ ipcMain.handle('updater-download-and-install', async (event, { downloadUrl, file
       }
     } catch {}
 
-    // Launch downloaded installer
-    const args = ['--setup'];
-    if (targetInstallPath) {
-      args.push(`--install-path=${targetInstallPath}`);
+    if (!targetInstallPath) {
+      targetInstallPath = path.dirname(process.execPath);
     }
 
-    spawn(tempInstaller, args, {
+    // CASE 1: In-Place Zip Update (Fast ~14 MB, zero reinstall wizard)
+    if (tempDownloadPath.toLowerCase().endsWith('.zip')) {
+      const extractDir = path.join(app.getPath('temp'), 'anme-update-extract');
+      if (fs.existsSync(extractDir)) {
+        try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
+      }
+      fs.mkdirSync(extractDir, { recursive: true });
+
+      console.log('[UPDATER] Extracting update zip to:', extractDir);
+      execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${tempDownloadPath}' -DestinationPath '${extractDir}' -Force"`, { stdio: 'ignore' });
+
+      // Find the folder containing dist / app assets
+      let sourceDir = extractDir;
+      if (fs.existsSync(path.join(extractDir, 'resources', 'app.asar'))) {
+        sourceDir = path.join(extractDir, 'resources', 'app.asar');
+      } else if (fs.existsSync(path.join(extractDir, 'resources'))) {
+        sourceDir = path.join(extractDir, 'resources');
+      } else if (fs.existsSync(path.join(extractDir, 'dist'))) {
+        sourceDir = extractDir;
+      }
+
+      const targetResources = path.join(targetInstallPath, 'resources');
+      const targetAsar = path.join(targetResources, 'app.asar');
+      const destinationFolder = fs.existsSync(targetAsar) ? targetAsar : (fs.existsSync(targetResources) ? targetResources : targetInstallPath);
+
+      console.log('[UPDATER] Applying in-place update from:', sourceDir, 'to:', destinationFolder);
+
+      const updateScriptPath = path.join(app.getPath('temp'), 'apply-anme-update.ps1');
+      const exeToLaunch = path.join(targetInstallPath, 'An-me.exe');
+
+      const psScript = `
+Start-Sleep -Milliseconds 600
+Wait-Process -Id ${process.pid} -Timeout 8 -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
+Copy-Item -Path "${sourceDir.replace(/\\/g, '\\\\')}\\*" -Destination "${destinationFolder.replace(/\\/g, '\\\\')}" -Recurse -Force -ErrorAction SilentlyContinue
+if (Test-Path "${exeToLaunch.replace(/\\/g, '\\\\')}") {
+  Start-Process "${exeToLaunch.replace(/\\/g, '\\\\')}"
+}
+Remove-Item -Path "${tempDownloadPath.replace(/\\/g, '\\\\')}" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "${extractDir.replace(/\\/g, '\\\\')}" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
+`;
+      fs.writeFileSync(updateScriptPath, psScript, 'utf8');
+
+      spawn('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', updateScriptPath], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      }).unref();
+
+      setTimeout(() => {
+        app.quit();
+      }, 800);
+
+      return { success: true };
+    }
+
+    // CASE 2: Executable Installer Update -> Silent Headless Update (No 6-step wizard!)
+    const args = ['--silent-update'];
+    if (targetInstallPath) {
+      args.push(`--target=${targetInstallPath}`);
+    }
+
+    spawn(tempDownloadPath, args, {
       detached: true,
       stdio: 'ignore',
+      windowsHide: true,
     }).unref();
 
-    // Give installer time to launch, then close running app instance
     setTimeout(() => {
       app.quit();
-    }, 1500);
+    }, 1200);
 
     return { success: true };
   } catch (err) {

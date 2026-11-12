@@ -10,6 +10,7 @@ export interface UpdateInfo {
   downloadUrl?: string;
   assetName?: string;
   assetSize?: number;
+  isDeltaUpdate?: boolean;
 }
 
 export function compareSemver(latest: string, current: string): number {
@@ -52,20 +53,35 @@ export async function checkForAppUpdate(): Promise<UpdateInfo> {
   const rawTag = data.tag_name || '';
   const latestVersion = rawTag.replace(/^v/, '') || '1.0.0';
 
-  // Find Windows installer asset (.exe)
+  // Prioritize lightweight in-place update package (*Update*.zip or app-update.zip ~14 MB)
+  // over the full 240 MB re-installer
   let downloadUrl: string | undefined;
   let assetName: string | undefined;
   let assetSize: number | undefined;
+  let isDeltaUpdate = false;
 
   if (Array.isArray(data.assets) && data.assets.length > 0) {
+    const updateZipAsset = data.assets.find((a: any) =>
+      typeof a.name === 'string' &&
+      a.name.toLowerCase().includes('update') &&
+      a.name.toLowerCase().endsWith('.zip')
+    );
+
     const exeAsset = data.assets.find((a: any) =>
       typeof a.name === 'string' && a.name.toLowerCase().endsWith('.exe')
-    ) || data.assets[0];
+    );
 
-    if (exeAsset) {
-      downloadUrl = exeAsset.browser_download_url;
-      assetName = exeAsset.name;
-      assetSize = exeAsset.size;
+    const portableZipAsset = data.assets.find((a: any) =>
+      typeof a.name === 'string' && a.name.toLowerCase().includes('portable') && a.name.toLowerCase().endsWith('.zip')
+    );
+
+    const chosenAsset = updateZipAsset || exeAsset || portableZipAsset || data.assets[0];
+
+    if (chosenAsset) {
+      downloadUrl = chosenAsset.browser_download_url;
+      assetName = chosenAsset.name;
+      assetSize = chosenAsset.size;
+      isDeltaUpdate = !!updateZipAsset && chosenAsset === updateZipAsset;
     }
   }
 
@@ -85,5 +101,6 @@ export async function checkForAppUpdate(): Promise<UpdateInfo> {
     downloadUrl,
     assetName,
     assetSize,
+    isDeltaUpdate,
   };
 }

@@ -9,6 +9,7 @@ dist/
 dist-setup/
 dist-bin/
 dist-packages/
+*.zip
 
 # Video streaming provider sources & scrapers (Protected / Proprietary)
 src/services/providers.ts

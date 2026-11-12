@@ -439,7 +439,7 @@ export function ProfileModal({
 
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[11px] font-mono text-slate-400">
-                      Installer size: ~{updateInfo.assetSize ? `${Math.round(updateInfo.assetSize / (1024 * 1024))} MB` : '248 MB'}
+                      {updateInfo.isDeltaUpdate ? 'In-place update package: ' : 'Package size: '}~{updateInfo.assetSize ? `${Math.round(updateInfo.assetSize / (1024 * 1024))} MB` : '14 MB'}
                     </span>
                     <button
                       type="button"
@@ -447,7 +447,7 @@ export function ProfileModal({
                       className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-pink-600/30 transition-all active:scale-95 cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      <span>Yes, Install Update</span>
+                      <span>{updateInfo.isDeltaUpdate ? 'Apply Update Now' : 'Update An:me'}</span>
                     </button>
                   </div>
                 </div>
@@ -474,7 +474,7 @@ export function ProfileModal({
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>{downloadProgress?.transferredMB || 0} MB / {downloadProgress?.totalMB || 245} MB</span>
+                    <span>{downloadProgress?.transferredMB || 0} MB / {downloadProgress?.totalMB || 14} MB</span>
                     <span>Please do not close An:me</span>
                   </div>
                 </div>
@@ -485,9 +485,9 @@ export function ProfileModal({
                 <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center gap-3">
                   <Loader2 className="w-5 h-5 text-emerald-400 animate-spin shrink-0" />
                   <div>
-                    <h5 className="text-xs font-bold text-white">Installing Update...</h5>
+                    <h5 className="text-xs font-bold text-white">Applying In-Place Update...</h5>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Launching setup and restarting An:me into the new version.
+                      Updating files and restarting An:me into the new version.
                     </p>
                   </div>
                 </div>
