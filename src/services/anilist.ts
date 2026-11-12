@@ -186,9 +186,14 @@ export async function getRecentlyUpdatedAnime(page = 1, perPage = 24): Promise<A
 export async function searchAnime(params: {
   search?: string;
   genre?: string;
+  genres?: string[];
   year?: number;
   season?: string;
   format?: string;
+  formats?: string[];
+  status?: string;
+  country?: string;
+  minScore?: number;
   sort?: string;
   page?: number;
   perPage?: number;
@@ -196,24 +201,48 @@ export async function searchAnime(params: {
   const {
     search,
     genre,
+    genres,
     year,
     season,
     format,
+    formats,
+    status,
+    country,
+    minScore,
     sort = 'POPULARITY_DESC',
     page = 1,
     perPage = 20,
   } = params;
 
   const query = `
-    query ($page: Int, $perPage: Int, $search: String, $genre: String, $seasonYear: Int, $season: MediaSeason, $format: MediaFormat, $sort: [MediaSort]) {
+    query (
+      $page: Int,
+      $perPage: Int,
+      $search: String,
+      $genre: String,
+      $genre_in: [String],
+      $seasonYear: Int,
+      $season: MediaSeason,
+      $format: MediaFormat,
+      $format_in: [MediaFormat],
+      $status: MediaStatus,
+      $countryOfOrigin: CountryCode,
+      $averageScore_greater: Int,
+      $sort: [MediaSort]
+    ) {
       Page(page: $page, perPage: $perPage) {
         media(
           type: ANIME
           search: $search
           genre: $genre
+          genre_in: $genre_in
           seasonYear: $seasonYear
           season: $season
           format: $format
+          format_in: $format_in
+          status: $status
+          countryOfOrigin: $countryOfOrigin
+          averageScore_greater: $averageScore_greater
           sort: $sort
           isAdult: false
         ) {
@@ -230,10 +259,36 @@ export async function searchAnime(params: {
   };
 
   if (search && search.trim()) variables.search = search.trim();
-  if (genre && genre !== 'All') variables.genre = genre;
+
+  // Multi-genre or single genre support
+  if (genres && genres.length > 0) {
+    const validGenres = genres.filter((g) => g && g !== 'All');
+    if (validGenres.length === 1) {
+      variables.genre = validGenres[0];
+    } else if (validGenres.length > 1) {
+      variables.genre_in = validGenres;
+    }
+  } else if (genre && genre !== 'All') {
+    variables.genre = genre;
+  }
+
+  // Multi-format or single format support
+  if (formats && formats.length > 0) {
+    const validFormats = formats.filter((f) => f && f !== 'All');
+    if (validFormats.length === 1) {
+      variables.format = validFormats[0];
+    } else if (validFormats.length > 1) {
+      variables.format_in = validFormats;
+    }
+  } else if (format && format !== 'All') {
+    variables.format = format;
+  }
+
   if (year) variables.seasonYear = year;
   if (season && season !== 'All') variables.season = season;
-  if (format && format !== 'All') variables.format = format;
+  if (status && status !== 'All') variables.status = status;
+  if (country && country !== 'All') variables.countryOfOrigin = country;
+  if (minScore && minScore > 0) variables.averageScore_greater = minScore;
 
   const data = await fetchAniList<{ Page: { media: Anime[] } }>(query, variables);
   return data.Page.media;

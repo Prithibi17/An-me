@@ -156,8 +156,9 @@ export function Navbar({
 
           {/* An:me Previous Logo with Rounded Corners */}
           <button
-            onClick={() => onSelectTab('home')}
+            onClick={() => onSelectTab('home-reset')}
             className="flex items-center gap-1.5 group cursor-pointer focus:outline-none"
+            title="Return to An:me Home"
           >
             <div className="overflow-hidden rounded-xl p-0.5 transition-transform group-hover:scale-[1.02]">
               <img
@@ -179,8 +180,8 @@ export function Navbar({
         <nav className="hidden md:flex items-center rounded-full border border-white/10 bg-[#141722] p-0.5 text-xs font-bold app-no-drag">
           <button
             onClick={() => onSelectTab('home')}
-            className={`rounded-full px-4 py-1.5 transition-all ${
-              currentTab === 'home'
+            className={`rounded-full px-4 py-1.5 transition-all cursor-pointer ${
+              currentTab === 'home' || currentTab === 'details' || currentTab === 'watch'
                 ? 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white shadow-md shadow-pink-600/30 font-black'
                 : 'text-white/60 hover:text-white'
             }`}
@@ -189,7 +190,7 @@ export function Navbar({
           </button>
           <button
             onClick={() => onSelectTab('discover')}
-            className={`rounded-full px-4 py-1.5 transition-all ${
+            className={`rounded-full px-4 py-1.5 transition-all cursor-pointer ${
               currentTab === 'discover' || currentTab === 'search'
                 ? 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white shadow-md shadow-pink-600/30 font-black'
                 : 'text-white/60 hover:text-white'

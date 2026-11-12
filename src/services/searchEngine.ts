@@ -390,9 +390,15 @@ export function clearSearchCache(): void {
 export interface SearchExecutionOptions {
   query?: string;
   genre?: string;
+  genres?: string[];
   year?: number;
   season?: string;
   format?: string;
+  formats?: string[];
+  status?: string;
+  country?: string;
+  audio?: 'all' | 'sub' | 'dub';
+  minScore?: number;
   sort?: string;
   page?: number;
   perPage?: number;
@@ -420,9 +426,15 @@ export async function executeIntelligentSearch(
   const {
     query = '',
     genre,
+    genres,
     year,
     season,
     format,
+    formats,
+    status,
+    country,
+    audio = 'all',
+    minScore,
     sort,
     page = 1,
     perPage = 24,
@@ -436,15 +448,25 @@ export async function executeIntelligentSearch(
   if (!normalized) {
     const data = await searchAnime({
       genre: genre !== 'All' ? genre : undefined,
+      genres,
       season: season !== 'All' ? season : undefined,
       format: format !== 'All' ? format : undefined,
+      formats,
+      status: status !== 'All' ? status : undefined,
+      country: country !== 'All' ? country : undefined,
+      minScore,
       sort: sort || 'POPULARITY_DESC',
       year,
       page,
       perPage,
     });
     const filtered = filterAdultAnime(data);
-    const enriched = await enrichAnimeAvailability(filtered);
+    let enriched = await enrichAnimeAvailability(filtered);
+    if (audio === 'sub') {
+      enriched = enriched.filter((a) => (a.subEpisodeCount || 0) > 0);
+    } else if (audio === 'dub') {
+      enriched = enriched.filter((a) => (a.dubEpisodeCount || 0) > 0);
+    }
     return {
       items: enriched,
       total: enriched.length,
@@ -494,8 +516,13 @@ export async function executeIntelligentSearch(
     rawList = await searchAnime({
       search: primarySearchTerm,
       genre: genre !== 'All' ? genre : undefined,
+      genres,
       season: season !== 'All' ? season : undefined,
       format: format !== 'All' ? format : undefined,
+      formats,
+      status: status !== 'All' ? status : undefined,
+      country: country !== 'All' ? country : undefined,
+      minScore,
       sort: sort || (primarySearchTerm.length <= 3 ? 'POPULARITY_DESC' : 'SEARCH_MATCH'),
       year,
       page,
@@ -516,8 +543,13 @@ export async function executeIntelligentSearch(
       rawList = await searchAnime({
         search: correctedSearchTerm,
         genre: genre !== 'All' ? genre : undefined,
+        genres,
         season: season !== 'All' ? season : undefined,
         format: format !== 'All' ? format : undefined,
+        formats,
+        status: status !== 'All' ? status : undefined,
+        country: country !== 'All' ? country : undefined,
+        minScore,
         sort: 'POPULARITY_DESC',
         year,
         page,
@@ -558,7 +590,12 @@ export async function executeIntelligentSearch(
   let sortedAnime = scoredItems.map((s) => s.anime);
 
   // Enrich with SUB availability
-  const enrichedItems = await enrichAnimeAvailability(sortedAnime.slice(0, perPage));
+  let enrichedItems = await enrichAnimeAvailability(sortedAnime.slice(0, perPage));
+  if (audio === 'sub') {
+    enrichedItems = enrichedItems.filter((a) => (a.subEpisodeCount || 0) > 0);
+  } else if (audio === 'dub') {
+    enrichedItems = enrichedItems.filter((a) => (a.dubEpisodeCount || 0) > 0);
+  }
 
   // 8. If 0 matching results exist, retrieve verified recommendations as a graceful fallback
   let relatedFallback = false;

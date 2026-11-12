@@ -122,9 +122,14 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Active viewing states
+  // Active viewing states & navigation memory
   const [activeAnime, setActiveAnime] = useState<Anime | null>(null);
   const [activeEpisode, setActiveEpisode] = useState<number>(1);
+  const [lastAnimeView, setLastAnimeView] = useState<{
+    tab: 'details' | 'watch';
+    anime: Anime;
+    episode?: number;
+  } | null>(null);
   const [watchlistCount, setWatchlistCount] = useState(0);
 
   // User Authentication & Cloud Sync
@@ -237,17 +242,19 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentTab, activeAnime, isSidebarOpen]);
 
-  // Navigate to Details page
+  // Navigate to Details page (records lastAnimeView to restore if user navigates to catalog and back)
   const handleOpenDetails = (anime: Anime) => {
     setActiveAnime(anime);
+    setLastAnimeView({ tab: 'details', anime });
     setCurrentTab('details');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Navigate to Watch page
+  // Navigate to Watch page (records lastAnimeView to restore if user navigates to catalog and back)
   const handleStartPlay = (anime: Anime, episode = 1) => {
     setActiveAnime(anime);
     setActiveEpisode(episode);
+    setLastAnimeView({ tab: 'watch', anime, episode });
     setCurrentTab('watch');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -318,6 +325,22 @@ export function App() {
           onSelectTab={(tab) => {
             if (tab === 'discover') {
               handleOpenSearch({});
+            } else if (tab === 'home-reset') {
+              setLastAnimeView(null);
+              setCurrentTab('home');
+            } else if (tab === 'home') {
+              // If user was viewing Details or Watch and clicked Anime, restore where they left off!
+              if (lastAnimeView && (currentTab === 'search' || currentTab === 'schedule' || currentTab === 'library' || currentTab === 'history' || currentTab === 'latest-episodes')) {
+                setActiveAnime(lastAnimeView.anime);
+                if (lastAnimeView.episode) setActiveEpisode(lastAnimeView.episode);
+                setCurrentTab(lastAnimeView.tab);
+              } else if (currentTab === 'details' || currentTab === 'watch') {
+                // Clicking Anime while already inside Details/Watch returns to home view
+                setLastAnimeView(null);
+                setCurrentTab('home');
+              } else {
+                setCurrentTab('home');
+              }
             } else {
               setCurrentTab(tab as any);
             }
@@ -356,9 +379,15 @@ export function App() {
           <WatchView
             anime={activeAnime}
             currentEpisode={activeEpisode}
-            onSelectEpisode={(ep) => setActiveEpisode(ep)}
+            onSelectEpisode={(ep) => {
+              setActiveEpisode(ep);
+              setLastAnimeView({ tab: 'watch', anime: activeAnime, episode: ep });
+            }}
             onOpenDetails={handleOpenDetails}
-            onBack={() => setCurrentTab('home')}
+            onBack={() => {
+              setLastAnimeView(null);
+              setCurrentTab('home');
+            }}
             onSelectAnime={(anime) => handleStartPlay(anime, 1)}
           />
         )}
@@ -367,7 +396,10 @@ export function App() {
         {currentTab === 'details' && activeAnime && (
           <DetailsView
             anime={activeAnime}
-            onBack={() => setCurrentTab('home')}
+            onBack={() => {
+              setLastAnimeView(null);
+              setCurrentTab('home');
+            }}
             onPlayEpisode={(anime, ep) => handleStartPlay(anime, ep)}
             onSelectRelated={handleOpenDetails}
           />
