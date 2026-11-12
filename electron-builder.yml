@@ -1,0 +1,43 @@
+appId: com.anme.desktop
+productName: An:me
+directories:
+  output: dist-installers
+files:
+  - dist/**/*
+  - electron/**/*
+  - public/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: public/anme-icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: An:me
+  artifactName: "An-me-Setup-${version}.${ext}"
+linux:
+  maintainer: "Prithibi <mandiprithibi31102006@gmail.com>"
+  target:
+    - target: deb
+      arch:
+        - x64
+    - target: tar.gz
+      arch:
+        - x64
+  icon: public/anme-icon.png
+  category: Video;AudioVideo;
+  artifactName: "An-me-Setup-${version}.${ext}"
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: public/anme-icon.png
+  category: public.app-category.entertainment
+  artifactName: "An-me-Setup-${version}-${arch}.${ext}"
