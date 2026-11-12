@@ -1,6 +1,6 @@
 {
   "name": "an-me-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "An:me Desktop Client - Electron clone of An:me anime discovery & streaming application",
   "main": "electron/main.cjs",
   "scripts": {
