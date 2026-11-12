@@ -9,14 +9,30 @@ import {
   Sparkles,
   AlertCircle,
   HelpCircle,
-  Filter,
-  Check
+  Layers,
+  Tv,
+  Flag,
+  Headphones,
+  Globe,
+  Star,
+  Calendar,
+  Flame,
+  TrendingUp,
+  RefreshCw,
+  Crosshair,
+  ArrowDownAZ,
+  ArrowUpZA,
+  ListOrdered,
+  Clock,
+  ArrowUpDown
 } from 'lucide-react';
 import { Anime } from '../../types/anime';
 import { AnimeCard } from '../AnimeCard';
 import { HiAnimeTop10 } from '../HiAnimeTop10';
 import { GenresCard } from '../GenresCard';
 import { executeIntelligentSearch } from '../../services/searchEngine';
+import { MultiSelectDropdown, MultiSelectOption } from './MultiSelectDropdown';
+import { SingleSelectDropdown, SingleSelectOption } from './SingleSelectDropdown';
 
 interface SearchViewProps {
   initialQuery?: string;
@@ -26,13 +42,18 @@ interface SearchViewProps {
   onPlayAnime: (anime: Anime) => void;
 }
 
-const GENRES = [
+// 33 complete catalog genres
+const GENRE_OPTIONS: MultiSelectOption[] = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
   'Mecha', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life',
-  'Sports', 'Supernatural', 'Thriller'
-];
+  'Sports', 'Supernatural', 'Thriller', 'Ecchi', 'Harem', 'Isekai',
+  'Martial Arts', 'Music', 'School', 'Seinen', 'Shoujo', 'Shounen',
+  'Josei', 'Historical', 'Military', 'Parody', 'Demons', 'Vampire',
+  'Game', 'Gourmet', 'Kids'
+].map((g) => ({ label: g, value: g }));
 
-const FORMAT_OPTIONS = [
+// Format options
+const FORMAT_OPTIONS: MultiSelectOption[] = [
   { label: 'TV Series', value: 'TV' },
   { label: 'Movie', value: 'MOVIE' },
   { label: 'OVA', value: 'OVA' },
@@ -41,7 +62,39 @@ const FORMAT_OPTIONS = [
   { label: 'TV Short', value: 'TV_SHORT' },
 ];
 
-const SEASONS = [
+const STATUS_OPTIONS: SingleSelectOption[] = [
+  { label: 'All Statuses', value: 'All' },
+  { label: 'Currently Airing', value: 'RELEASING' },
+  { label: 'Finished Airing', value: 'FINISHED' },
+  { label: 'Not Yet Aired', value: 'NOT_YET_RELEASED' },
+  { label: 'Upcoming', value: 'NOT_YET_RELEASED' },
+];
+
+const AUDIO_OPTIONS: SingleSelectOption[] = [
+  { label: 'All Audio', value: 'all' },
+  { label: 'Japanese', value: 'sub' },
+  { label: 'English Dub', value: 'dub' },
+  { label: 'Multi-Audio', value: 'all' },
+];
+
+const COUNTRY_OPTIONS: SingleSelectOption[] = [
+  { label: 'All Countries', value: 'All' },
+  { label: 'Japan', value: 'JP' },
+  { label: 'China', value: 'CN' },
+  { label: 'South Korea', value: 'KR' },
+  { label: 'Other', value: 'TW' },
+];
+
+const MIN_SCORE_OPTIONS: SingleSelectOption[] = [
+  { label: 'Any Score', value: 0 },
+  { label: '5+', value: 50 },
+  { label: '6+', value: 60 },
+  { label: '7+', value: 70 },
+  { label: '8+', value: 80 },
+  { label: '9+', value: 90 },
+];
+
+const SEASON_OPTIONS: SingleSelectOption[] = [
   { label: 'All Seasons', value: 'All' },
   { label: 'Winter', value: 'WINTER' },
   { label: 'Spring', value: 'SPRING' },
@@ -49,42 +102,18 @@ const SEASONS = [
   { label: 'Fall', value: 'FALL' },
 ];
 
-const STATUS_OPTIONS = [
-  { label: 'All Statuses', value: 'All' },
-  { label: 'Airing', value: 'RELEASING' },
-  { label: 'Finished', value: 'FINISHED' },
-  { label: 'Upcoming', value: 'NOT_YET_RELEASED' },
-  { label: 'Cancelled', value: 'CANCELLED' },
-];
-
-const AUDIO_OPTIONS = [
-  { label: 'All Audio', value: 'all' },
-  { label: 'Subbed', value: 'sub' },
-  { label: 'English Dubbed', value: 'dub' },
-];
-
-const COUNTRY_OPTIONS = [
-  { label: 'All Countries', value: 'All' },
-  { label: 'Japan (JP)', value: 'JP' },
-  { label: 'South Korea (KR)', value: 'KR' },
-  { label: 'China (CN)', value: 'CN' },
-];
-
-const MIN_SCORE_OPTIONS = [
-  { label: 'Any Score', value: 0 },
-  { label: '⭐ 80%+ (Masterpiece)', value: 80 },
-  { label: '⭐ 75%+ (Great)', value: 75 },
-  { label: '⭐ 70%+ (Good)', value: 70 },
-  { label: '⭐ 60%+ (Average)', value: 60 },
-];
-
-const SORTS = [
-  { label: 'Popularity', value: 'POPULARITY_DESC' },
-  { label: 'Trending', value: 'TRENDING_DESC' },
-  { label: 'Top Rated', value: 'SCORE_DESC' },
-  { label: 'Release Date', value: 'START_DATE_DESC' },
-  { label: 'Recently Updated', value: 'UPDATED_AT_DESC' },
-  { label: 'Relevance', value: 'SEARCH_MATCH' },
+// All 10 sorting options
+const SORT_OPTIONS = [
+  { label: 'Popularity', value: 'POPULARITY_DESC', icon: Flame },
+  { label: 'Trending', value: 'TRENDING_DESC', icon: TrendingUp },
+  { label: 'Top Rated', value: 'SCORE_DESC', icon: Star },
+  { label: 'Release Date', value: 'START_DATE_DESC', icon: Calendar },
+  { label: 'Recently Updated', value: 'UPDATED_AT_DESC', icon: RefreshCw },
+  { label: 'Relevance', value: 'SEARCH_MATCH', icon: Crosshair },
+  { label: 'Title A–Z', value: 'TITLE_ROMAJI', icon: ArrowDownAZ },
+  { label: 'Title Z–A', value: 'TITLE_ROMAJI_DESC', icon: ArrowUpZA },
+  { label: 'Most Episodes', value: 'EPISODES_DESC', icon: ListOrdered },
+  { label: 'Recently Added', value: 'ID_DESC', icon: Clock },
 ];
 
 export function SearchView({
@@ -103,14 +132,14 @@ export function SearchView({
   );
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 
-  // Dropdown filter states
+  // Single-selection states
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedAudio, setSelectedAudio] = useState<'all' | 'sub' | 'dub'>('all');
   const [selectedCountry, setSelectedCountry] = useState('All');
   const [selectedMinScore, setSelectedMinScore] = useState<number>(0);
   const [selectedSeason, setSelectedSeason] = useState('All');
-  const [selectedSort, setSelectedSort] = useState(initialQuery ? 'SEARCH_MATCH' : 'POPULARITY_DESC');
   const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined);
+  const [selectedSort, setSelectedSort] = useState(initialQuery ? 'SEARCH_MATCH' : 'POPULARITY_DESC');
 
   const [results, setResults] = useState<Anime[]>([]);
   const [relatedItems, setRelatedItems] = useState<Anime[]>([]);
@@ -140,28 +169,6 @@ export function SearchView({
       setCurrentPage(1);
     }
   }, [initialGenre]);
-
-  const toggleGenre = (genre: string) => {
-    if (genre === 'All') {
-      setSelectedGenres([]);
-    } else {
-      setSelectedGenres((prev) =>
-        prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
-      );
-    }
-    setCurrentPage(1);
-  };
-
-  const toggleFormat = (format: string) => {
-    if (format === 'All') {
-      setSelectedFormats([]);
-    } else {
-      setSelectedFormats((prev) =>
-        prev.includes(format) ? prev.filter((f) => f !== format) : [...prev, format]
-      );
-    }
-    setCurrentPage(1);
-  };
 
   const fetchResults = async (page = 1) => {
     if (abortControllerRef.current) {
@@ -252,12 +259,20 @@ export function SearchView({
     setCurrentPage(1);
   };
 
-  const years = Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i);
+  // Generate dynamic years from current year down to 1980
+  const currentYear = new Date().getFullYear();
+  const yearOptions: SingleSelectOption[] = [
+    { label: 'All Years', value: '' },
+    ...Array.from({ length: currentYear - 1980 + 1 }, (_, i) => {
+      const yr = currentYear - i;
+      return { label: String(yr), value: yr };
+    }),
+  ];
 
   // Dynamic header title
   const getListingTitle = () => {
     if (query) return `Search: "${query}"`;
-    if (selectedGenres.length > 0) return `${selectedGenres.join(' + ')} Anime`;
+    if (selectedGenres.length > 0) return `${selectedGenres.join(', ')} Anime`;
     if (selectedFormats.length > 0) {
       const names = selectedFormats.map((f) => FORMAT_OPTIONS.find((o) => o.value === f)?.label || f);
       return `${names.join(', ')} Anime`;
@@ -266,18 +281,20 @@ export function SearchView({
     return 'Browse Anime Catalog';
   };
 
-  // Build active filter tags list
-  interface ActiveFilterChip {
-    id: string;
+  // Build active filter summary chips
+  interface FilterSummaryItem {
+    key: string;
+    category: string;
     label: string;
     onRemove: () => void;
   }
 
-  const activeChips: ActiveFilterChip[] = [];
+  const activeFiltersSummary: FilterSummaryItem[] = [];
 
   if (query.trim()) {
-    activeChips.push({
-      id: 'query',
+    activeFiltersSummary.push({
+      key: 'query',
+      category: 'Search',
       label: `"${query.trim()}"`,
       onRemove: () => {
         setQuery('');
@@ -287,69 +304,79 @@ export function SearchView({
   }
 
   selectedGenres.forEach((g) => {
-    activeChips.push({
-      id: `genre-${g}`,
-      label: `Genre: ${g}`,
-      onRemove: () => toggleGenre(g),
+    activeFiltersSummary.push({
+      key: `genre-${g}`,
+      category: 'Genre',
+      label: g,
+      onRemove: () => setSelectedGenres((prev) => prev.filter((item) => item !== g)),
     });
   });
 
   selectedFormats.forEach((f) => {
     const opt = FORMAT_OPTIONS.find((o) => o.value === f);
-    activeChips.push({
-      id: `format-${f}`,
-      label: `Format: ${opt?.label || f}`,
-      onRemove: () => toggleFormat(f),
+    activeFiltersSummary.push({
+      key: `format-${f}`,
+      category: 'Format',
+      label: opt?.label || f,
+      onRemove: () => setSelectedFormats((prev) => prev.filter((item) => item !== f)),
     });
   });
 
   if (selectedStatus !== 'All') {
     const opt = STATUS_OPTIONS.find((o) => o.value === selectedStatus);
-    activeChips.push({
-      id: 'status',
-      label: `Status: ${opt?.label || selectedStatus}`,
+    activeFiltersSummary.push({
+      key: 'status',
+      category: 'Status',
+      label: opt?.label || selectedStatus,
       onRemove: () => setSelectedStatus('All'),
     });
   }
 
   if (selectedAudio !== 'all') {
-    activeChips.push({
-      id: 'audio',
-      label: selectedAudio === 'dub' ? 'Audio: Dubbed' : 'Audio: Subbed',
+    const opt = AUDIO_OPTIONS.find((o) => o.value === selectedAudio);
+    activeFiltersSummary.push({
+      key: 'audio',
+      category: 'Audio',
+      label: opt?.label || selectedAudio,
       onRemove: () => setSelectedAudio('all'),
     });
   }
 
   if (selectedCountry !== 'All') {
     const opt = COUNTRY_OPTIONS.find((o) => o.value === selectedCountry);
-    activeChips.push({
-      id: 'country',
-      label: `Country: ${opt?.label || selectedCountry}`,
+    activeFiltersSummary.push({
+      key: 'country',
+      category: 'Country',
+      label: opt?.label || selectedCountry,
       onRemove: () => setSelectedCountry('All'),
     });
   }
 
   if (selectedMinScore > 0) {
-    activeChips.push({
-      id: 'minScore',
-      label: `Rating: ≥${selectedMinScore}%`,
+    const opt = MIN_SCORE_OPTIONS.find((o) => o.value === selectedMinScore);
+    activeFiltersSummary.push({
+      key: 'minScore',
+      category: 'Score',
+      label: opt?.label || `${selectedMinScore / 10}+`,
       onRemove: () => setSelectedMinScore(0),
     });
   }
 
   if (selectedSeason !== 'All') {
-    const opt = SEASONS.find((o) => o.value === selectedSeason);
-    activeChips.push({
-      id: 'season',
-      label: `Season: ${opt?.label || selectedSeason}`,
+    const opt = SEASON_OPTIONS.find((o) => o.value === selectedSeason);
+    activeFiltersSummary.push({
+      key: 'season',
+      category: 'Season',
+      label: opt?.label || selectedSeason,
       onRemove: () => setSelectedSeason('All'),
     });
   }
 
   if (selectedYear) {
-    activeChips.push({
-      id: 'year',
-      label: `Year: ${selectedYear}`,
+    activeFiltersSummary.push({
+      key: 'year',
+      category: 'Year',
+      label: String(selectedYear),
       onRemove: () => setSelectedYear(undefined),
     });
   }
@@ -365,8 +392,8 @@ export function SearchView({
               {getListingTitle()}
             </h1>
             {!loading && results.length > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-bold ml-2">
-                {results.length} item{results.length === 1 ? '' : 's'}
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 font-bold ml-2">
+                {results.length} items
               </span>
             )}
           </div>
@@ -432,215 +459,116 @@ export function SearchView({
           </div>
         )}
 
-        {/* Filter Panel */}
-        <div className="bg-[#11151B] border border-white/10 rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
-          {/* Multi-Selection Genre Chips */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>Genres</span>
-                <span className="text-[10px] text-slate-500 font-normal lowercase">(multi-select)</span>
-              </label>
-              {selectedGenres.length > 0 && (
-                <button
-                  onClick={() => toggleGenre('All')}
-                  className="text-[10px] text-pink-400 hover:text-pink-300 cursor-pointer font-bold"
-                >
-                  Reset Genres
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => toggleGenre('All')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  selectedGenres.length === 0
-                    ? 'bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 text-white shadow-md shadow-pink-600/30 font-bold'
-                    : 'bg-[#181c24] text-slate-300 hover:text-white hover:bg-[#202738] border border-white/5'
-                }`}
-              >
-                All
-              </button>
-              {GENRES.map((g) => {
-                const isSelected = selectedGenres.includes(g);
-                return (
-                  <button
-                    key={g}
-                    onClick={() => toggleGenre(g)}
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 text-white shadow-md shadow-pink-600/30 font-bold ring-1 ring-pink-400'
-                        : 'bg-[#181c24] text-slate-300 hover:text-white hover:bg-[#202738] border border-white/5'
-                    }`}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-white shrink-0" />}
-                    <span>{g}</span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* 2. Redesigned Advanced Filter Panel (Row 1 & Row 2) */}
+        <div className="bg-[#0D1117] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xl">
+          {/* ROW 1: Genre, Format, Status, Audio, Country, Min Score */}
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-start">
+            <MultiSelectDropdown
+              icon={<Layers className="w-3.5 h-3.5" />}
+              label="Genre"
+              options={GENRE_OPTIONS}
+              selectedValues={selectedGenres}
+              onChange={(vals) => {
+                setSelectedGenres(vals);
+                setCurrentPage(1);
+              }}
+              placeholder="All Genres"
+            />
+
+            <MultiSelectDropdown
+              icon={<Tv className="w-3.5 h-3.5" />}
+              label="Format"
+              options={FORMAT_OPTIONS}
+              selectedValues={selectedFormats}
+              onChange={(vals) => {
+                setSelectedFormats(vals);
+                setCurrentPage(1);
+              }}
+              placeholder="All Formats"
+            />
+
+            <SingleSelectDropdown
+              icon={<Flag className="w-3.5 h-3.5" />}
+              label="Status"
+              options={STATUS_OPTIONS}
+              selectedValue={selectedStatus}
+              onChange={(v) => {
+                setSelectedStatus(v);
+                setCurrentPage(1);
+              }}
+            />
+
+            <SingleSelectDropdown
+              icon={<Headphones className="w-3.5 h-3.5" />}
+              label="Audio"
+              options={AUDIO_OPTIONS}
+              selectedValue={selectedAudio}
+              onChange={(v) => {
+                setSelectedAudio(v);
+                setCurrentPage(1);
+              }}
+            />
+
+            <SingleSelectDropdown
+              icon={<Globe className="w-3.5 h-3.5" />}
+              label="Country"
+              options={COUNTRY_OPTIONS}
+              selectedValue={selectedCountry}
+              onChange={(v) => {
+                setSelectedCountry(v);
+                setCurrentPage(1);
+              }}
+            />
+
+            <SingleSelectDropdown
+              icon={<Star className="w-3.5 h-3.5" />}
+              label="Min Score"
+              options={MIN_SCORE_OPTIONS}
+              selectedValue={selectedMinScore}
+              onChange={(v) => {
+                setSelectedMinScore(Number(v));
+                setCurrentPage(1);
+              }}
+            />
           </div>
 
-          {/* Multi-Selection Format Chips */}
-          <div className="pt-2 border-t border-white/[0.06]">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>Format</span>
-                <span className="text-[10px] text-slate-500 font-normal lowercase">(multi-select)</span>
-              </label>
-              {selectedFormats.length > 0 && (
-                <button
-                  onClick={() => toggleFormat('All')}
-                  className="text-[10px] text-pink-400 hover:text-pink-300 cursor-pointer font-bold"
-                >
-                  Reset Format
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => toggleFormat('All')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  selectedFormats.length === 0
-                    ? 'bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 text-white shadow-md shadow-pink-600/30 font-bold'
-                    : 'bg-[#181c24] text-slate-300 hover:text-white hover:bg-[#202738] border border-white/5'
-                }`}
-              >
-                All Formats
-              </button>
-              {FORMAT_OPTIONS.map((f) => {
-                const isSelected = selectedFormats.includes(f.value);
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => toggleFormat(f.value)}
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 text-white shadow-md shadow-pink-600/30 font-bold ring-1 ring-pink-400'
-                        : 'bg-[#181c24] text-slate-300 hover:text-white hover:bg-[#202738] border border-white/5'
-                    }`}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-white shrink-0" />}
-                    <span>{f.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Dropdown Filters Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 border-t border-white/[0.06]">
-            {/* Status Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Status</label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => {
-                  setSelectedStatus(e.target.value);
+          {/* ROW 2: Season, Year, Sorting */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-3 border-t border-white/[0.06]">
+            {/* Season & Year Controls */}
+            <div className="grid grid-cols-2 gap-3 max-w-sm w-full">
+              <SingleSelectDropdown
+                icon={<Layers className="w-3.5 h-3.5" />}
+                label="Season"
+                options={SEASON_OPTIONS}
+                selectedValue={selectedSeason}
+                onChange={(v) => {
+                  setSelectedSeason(v);
                   setCurrentPage(1);
                 }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </div>
+              />
 
-            {/* Audio Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Audio</label>
-              <select
-                value={selectedAudio}
-                onChange={(e) => {
-                  setSelectedAudio(e.target.value as any);
+              <SingleSelectDropdown
+                icon={<Calendar className="w-3.5 h-3.5" />}
+                label="Year"
+                options={yearOptions}
+                selectedValue={selectedYear || ''}
+                onChange={(v) => {
+                  setSelectedYear(v ? Number(v) : undefined);
                   setCurrentPage(1);
                 }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                {AUDIO_OPTIONS.map((a) => (
-                  <option key={a.value} value={a.value}>{a.label}</option>
-                ))}
-              </select>
+              />
             </div>
 
-            {/* Country Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Country</label>
-              <select
-                value={selectedCountry}
-                onChange={(e) => {
-                  setSelectedCountry(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Min Rating Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Min Score</label>
-              <select
-                value={selectedMinScore}
-                onChange={(e) => {
-                  setSelectedMinScore(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                {MIN_SCORE_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Season Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Season</label>
-              <select
-                value={selectedSeason}
-                onChange={(e) => {
-                  setSelectedSeason(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                {SEASONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Year Dropdown */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Year</label>
-              <select
-                value={selectedYear || ''}
-                onChange={(e) => {
-                  setSelectedYear(e.target.value ? Number(e.target.value) : undefined);
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#181c24] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 cursor-pointer"
-              >
-                <option value="">All Years</option>
-                {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Sort By Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sort By:</label>
-              <div className="flex flex-wrap gap-1.5">
-                {SORTS.map((s) => {
-                  const isSelected = selectedSort === s.value;
+            {/* Sorting Button Group (Horizontal Pill Bar matching image) */}
+            <div className="flex flex-col gap-1 flex-1 lg:max-w-3xl">
+              <div className="flex items-center gap-1.5 px-0.5">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[11px] font-bold text-slate-300 tracking-wide">Sort By:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {SORT_OPTIONS.map((s) => {
+                  const isActive = selectedSort === s.value;
+                  const Icon = s.icon;
                   return (
                     <button
                       key={s.value}
@@ -648,13 +576,14 @@ export function SearchView({
                         setSelectedSort(s.value);
                         setCurrentPage(1);
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-pink-600 text-white font-bold shadow-sm'
-                          : 'bg-[#181c24] text-slate-400 hover:text-white hover:bg-[#202738]'
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-gradient-to-r from-red-600 via-pink-600 to-blue-600 text-white shadow-md shadow-pink-600/30 ring-1 ring-pink-400'
+                          : 'bg-[#141824] hover:bg-[#1C2230] text-slate-300 hover:text-white border border-white/5'
                       }`}
                     >
-                      {s.label}
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{s.label}</span>
                     </button>
                   );
                 })}
@@ -662,31 +591,35 @@ export function SearchView({
             </div>
           </div>
 
-          {/* Active Selected Tags Bar ("What I Selected Will Show") */}
-          {activeChips.length > 0 && (
-            <div className="pt-3 border-t border-white/[0.06] flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
-                <Filter className="w-3.5 h-3.5 text-pink-500" />
-                Active Filters ({activeChips.length}):
+          {/* Active Filter Summary Bar */}
+          {activeFiltersSummary.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/[0.06] text-xs">
+              <span className="text-slate-400 font-bold text-[11px]">
+                Active Filters ({activeFiltersSummary.length}):
               </span>
-              {activeChips.map((chip) => (
-                <span
-                  key={chip.id}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-pink-500/15 text-pink-300 border border-pink-500/30 hover:border-pink-500/60 transition-colors shadow-sm"
-                >
-                  <span>{chip.label}</span>
-                  <button
-                    onClick={chip.onRemove}
-                    className="hover:text-white hover:bg-pink-500/40 rounded-full p-0.5 transition-colors cursor-pointer"
-                    title={`Remove ${chip.label}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
+              <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                {activeFiltersSummary.map((item, idx) => (
+                  <React.Fragment key={item.key}>
+                    {idx > 0 && <span className="text-white/20 select-none">|</span>}
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-pink-500/15 text-pink-300 border border-pink-500/40">
+                      <span className="text-slate-400 font-normal">{item.category}:</span>
+                      <span>{item.label}</span>
+                      <button
+                        type="button"
+                        onClick={item.onRemove}
+                        className="hover:text-white hover:bg-pink-500/40 rounded p-0.5 ml-0.5 transition-colors cursor-pointer"
+                        title={`Remove ${item.label}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
               <button
+                type="button"
                 onClick={handleReset}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer ml-1"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
                 title="Reset all filters"
               >
                 <RotateCcw className="w-3 h-3 text-pink-400" />
@@ -697,7 +630,7 @@ export function SearchView({
         </div>
       </div>
 
-      {/* 2. Main Two-Column Section (Main Results + Sidebar) */}
+      {/* 3. Main Two-Column Section (Main Results + Sidebar) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Results Grid (left, 70% / 8 cols) */}
         <div className="lg:col-span-8 flex flex-col gap-6">
@@ -852,7 +785,10 @@ export function SearchView({
 
           <GenresCard
             onSelectGenre={(g) => {
-              toggleGenre(g);
+              setSelectedGenres((prev) =>
+                prev.includes(g) ? prev.filter((item) => item !== g) : [...prev, g]
+              );
+              setCurrentPage(1);
             }}
           />
         </div>
@@ -860,3 +796,4 @@ export function SearchView({
     </div>
   );
 }
+

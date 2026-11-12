@@ -9,6 +9,8 @@ dist/
 dist-setup/
 dist-bin/
 dist-packages/
+dist-installers/
+release-artifacts/
 *.zip
 
 # Video streaming provider sources & scrapers (Protected / Proprietary)

@@ -183,6 +183,12 @@ export async function getRecentlyUpdatedAnime(page = 1, perPage = 24): Promise<A
   return fallbackData?.Page?.media || [];
 }
 
+const ANILIST_NATIVE_GENRES = new Set([
+  'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Horror',
+  'Mahou Shoujo', 'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance',
+  'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
+]);
+
 export async function searchAnime(params: {
   search?: string;
   genre?: string;
@@ -221,6 +227,7 @@ export async function searchAnime(params: {
       $search: String,
       $genre: String,
       $genre_in: [String],
+      $tag_in: [String],
       $seasonYear: Int,
       $season: MediaSeason,
       $format: MediaFormat,
@@ -236,6 +243,7 @@ export async function searchAnime(params: {
           search: $search
           genre: $genre
           genre_in: $genre_in
+          tag_in: $tag_in
           seasonYear: $seasonYear
           season: $season
           format: $format
@@ -260,16 +268,27 @@ export async function searchAnime(params: {
 
   if (search && search.trim()) variables.search = search.trim();
 
-  // Multi-genre or single genre support
+  // Multi-genre or single genre support (routes native genres to genre_in, and subgenres like Isekai to tag_in)
   if (genres && genres.length > 0) {
     const validGenres = genres.filter((g) => g && g !== 'All');
-    if (validGenres.length === 1) {
-      variables.genre = validGenres[0];
-    } else if (validGenres.length > 1) {
-      variables.genre_in = validGenres;
+    const nativeGenres = validGenres.filter((g) => ANILIST_NATIVE_GENRES.has(g));
+    const tagGenres = validGenres.filter((g) => !ANILIST_NATIVE_GENRES.has(g));
+
+    if (nativeGenres.length === 1) {
+      variables.genre = nativeGenres[0];
+    } else if (nativeGenres.length > 1) {
+      variables.genre_in = nativeGenres;
+    }
+
+    if (tagGenres.length > 0) {
+      variables.tag_in = tagGenres;
     }
   } else if (genre && genre !== 'All') {
-    variables.genre = genre;
+    if (ANILIST_NATIVE_GENRES.has(genre)) {
+      variables.genre = genre;
+    } else {
+      variables.tag_in = [genre];
+    }
   }
 
   // Multi-format or single format support
