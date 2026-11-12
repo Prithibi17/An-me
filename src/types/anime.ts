@@ -50,6 +50,8 @@ export interface Anime {
   episodes?: number | null;
   subEpisodeCount?: number;
   dubEpisodeCount?: number;
+  anizipEpisodes?: Record<string, any>;
+  availabilitySource?: string;
   latestEpisodeNumber?: number;
   latestEpisodeTimestamp?: number;
   relativeUpdateTime?: string;

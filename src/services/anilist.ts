@@ -467,12 +467,18 @@ export function getAnimeEpisodesList(anime: Anime): Array<{ number: number; titl
     });
   }
 
+  const anizipEps = anime.anizipEpisodes || {};
+
   for (let i = 1; i <= total; i++) {
     const stream = streamMap.get(i);
+    const anizipEp = anizipEps[String(i)] || anizipEps[i];
+    const anizipTitle = anizipEp?.title?.en || anizipEp?.title?.['x-jat'] || anizipEp?.title?.ja;
+    const anizipImage = anizipEp?.image;
+
     list.push({
       number: i,
-      title: stream?.title || `Episode ${i}`,
-      thumbnail: stream?.thumbnail,
+      title: anizipTitle || stream?.title || `Episode ${i}`,
+      thumbnail: anizipImage || stream?.thumbnail,
     });
   }
 

@@ -120,6 +120,8 @@ export function WatchView({
           ...full,
           subEpisodeCount: avail.subCount,
           dubEpisodeCount: avail.dubCount,
+          anizipEpisodes: avail.anizipData?.episodes,
+          availabilitySource: avail.source,
         };
         if (isSubscribed) setCurrentAnime(full);
       } catch (err) {

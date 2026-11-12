@@ -71,6 +71,8 @@ export function DetailsView({
           ...full,
           subEpisodeCount: avail.subCount,
           dubEpisodeCount: avail.dubCount,
+          anizipEpisodes: avail.anizipData?.episodes,
+          availabilitySource: avail.source,
         });
       } catch (err) {
         console.error('Failed to load full anime details:', err);
