@@ -23,12 +23,21 @@ An:me is now packaged as a true native desktop application across all major oper
 ---
 
 ### 2. 🎬 Seamless Cinematic Splash Screen
-- **Ghosting & Duplication Eliminated**: Fixed the issue where duplicate cards and an extra row of dots appeared at the end of the loading transition.
-- **Unified Render Architecture**: Removed redundant composite overlay layers, giving a clean, pixel-perfect cyberpunk sequence with smooth neon auras and animated status dots.
+- **Ghosting & Duplication Eliminated**: Fixed the issue where duplicate cards, brackets, and an extra row of dots appeared in the background at the end of the loading transition.
+- **Unified Render Architecture**: Removed redundant pre-hydration overlay markup from `index.html`, ensuring only the dynamic React splash sequence renders. Gives a clean, pixel-perfect cyberpunk intro with smooth neon auras and animated status dots that fade seamlessly into the main dashboard.
 
 ---
 
-### 3. 🇬🇧 Authoritative English Title Heuristics
+### 3. 🌐 Multi-Source Sub & Dub Availability Engine
+- **Multi-Source Aggregation**: Resolved missing and inaccurate SUB/DUB counts by aggregating data across multiple authoritative sources: **Anikoto Database**, **AniZip**, **MALSync**, and **AniList**.
+- **9,300+ Anime Indexed**: Expanded the local catalog indexing engine across all 95 catalog pages (over 9,300 anime) with fast parallel retrieval and persistent client-side caching.
+- **AniZip Air Date Precision**: Queries TVDB and AniDB UTC broadcast schedules (`airDateUtc`) to compute exact released episode counts in real-time.
+- **Major Streamer Cross-Referencing**: Integrates MALSync to cross-check global streaming platforms (Crunchyroll, Hulu, Netflix, KickAssAnime) for English dub availability.
+- **No More Default Ep 12 on Long Series**: Long-running anime like *One Piece* now correctly display true counts (`SUB 1180` / `DUB 1159`) across all cards and spotlights instead of defaulting to 12.
+
+---
+
+### 4. 🇬🇧 Authoritative English Title Heuristics
 - **Smart English Ranking**: Added a linguistic scoring engine (`titleHelper.ts`) that selects authentic English anime titles over Japanese Romaji transliterations (e.g., *"Magical Girl Raising Project: Restart"* instead of Japanese/Thai localized abbreviations).
 - **Non-Latin Script Filtering**: Automatically rejects non-Latin titles (Kanji, Kana, Thai script) whenever valid Romanized or English alternatives are available.
 - **Unified Consistency**: English titles now consistently display across Spotlight, Trending Now, Top 10, Details View, Episode Grid, Schedule, Player, and Library.
@@ -96,9 +105,10 @@ An:me is now packaged as a true native desktop application across all major oper
 ---
 
 ## 🧪 Quality & Test Verification
-- **55/55 Unit & Integration Tests Passing**:
+- **62/62 Unit & Integration Tests Passing**:
   - `tests/intelligentSearch.test.mjs` (21 tests)
   - `tests/latestEpisodes.test.mjs` (11 tests)
   - `tests/watchProgress.test.mjs` (11 tests)
   - `tests/titleHelper.test.mjs` (12 tests)
-- **Production Build Status**: Verified clean Vite v8 & Electron production compilation.
+  - `tests/multiSourceAvailability.test.mjs` (7 tests)
+- **Production Build Status**: Verified clean Vite v8 & Electron production compilation with zero bundling errors.
