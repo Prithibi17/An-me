@@ -11,6 +11,10 @@ dist-bin/
 dist-packages/
 dist-installers/
 release-artifacts/
+android/app/build/
+android/.gradle/
+android/build/
+*.apk
 *.zip
 
 # Video streaming provider sources & scrapers (Protected / Proprietary)

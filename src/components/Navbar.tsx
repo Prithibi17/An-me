@@ -177,10 +177,10 @@ export function Navbar({
         </div>
 
         {/* Primary media switcher with exact replica of user screenshot */}
-        <nav className="hidden md:flex items-center rounded-full border border-white/10 bg-[#141722] p-0.5 text-xs font-bold app-no-drag">
+        <nav className="flex items-center rounded-full border border-white/10 bg-[#141722] p-0.5 text-xs font-bold app-no-drag">
           <button
             onClick={() => onSelectTab('home')}
-            className={`rounded-full px-4 py-1.5 transition-all cursor-pointer ${
+            className={`rounded-full px-3 sm:px-4 py-1.5 transition-all cursor-pointer ${
               currentTab === 'home' || currentTab === 'details' || currentTab === 'watch'
                 ? 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white shadow-md shadow-pink-600/30 font-black'
                 : 'text-white/60 hover:text-white'
@@ -190,7 +190,7 @@ export function Navbar({
           </button>
           <button
             onClick={() => onSelectTab('discover')}
-            className={`rounded-full px-4 py-1.5 transition-all cursor-pointer ${
+            className={`rounded-full px-3 sm:px-4 py-1.5 transition-all cursor-pointer ${
               currentTab === 'discover' || currentTab === 'search'
                 ? 'bg-gradient-to-r from-red-500 via-pink-500 to-pink-600 text-white shadow-md shadow-pink-600/30 font-black'
                 : 'text-white/60 hover:text-white'
@@ -372,12 +372,21 @@ export function Navbar({
         </div>
 
         {/* Right Nav Icons matching user screenshot */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 app-no-drag">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 app-no-drag">
+          {/* Mobile Search Button */}
+          <button
+            onClick={() => onOpenSearch?.({})}
+            title="Search Anime"
+            className="sm:hidden w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <Search className="w-4 h-4 text-pink-400" />
+          </button>
+
           {/* Shuffle / Random Anime */}
           <button
             onClick={handleRandom}
             title="Random Anime"
-            className="w-8 h-8 rounded-full bg-transparent hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="hidden xs:flex w-8 h-8 rounded-full bg-transparent hover:bg-white/10 text-white/80 hover:text-white items-center justify-center transition-colors cursor-pointer"
           >
             <Shuffle className="w-4 h-4" />
           </button>
@@ -386,7 +395,7 @@ export function Navbar({
           <button
             onClick={() => onSelectTab('library')}
             title="My Library"
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
               currentTab === 'library'
                 ? 'bg-pink-600 text-white border-pink-500 shadow-md shadow-pink-600/30'
                 : 'border-pink-500/60 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20'
